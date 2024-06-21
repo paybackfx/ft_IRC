@@ -6,7 +6,7 @@
 /*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/04 12:37:11 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/19 02:49:43 by anas             ###   ########.fr       */
+/*   Updated: 2024/06/21 04:22:02 by anas             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,7 +18,11 @@ client::client() : clientManager(ClientManager::getInstance()), fd(-1), connecte
     command_map["/nick"] = &client::nick;
     command_map["/user"] = &client::user;
     command_map["/privmsg"] = &client::privmsg;
-    // command_map["/FILEMSG"] = &client::filemsg;
+    command_map["/notice"] = &client::privmsg;
+    command_map["/filemsg"] = &client::filemsg;
+    commmand_map["/filestart"] = &client::handle_file_start;
+    // command_map["/filedata"] = &client::handle_file_data;
+    // command_map["/fileend"] = &client::handle_file_end;
     command_map["/quit"] = &client::quit;
 }
 
@@ -28,7 +32,10 @@ client::client(int fd , unsigned int port, const std::string& password) : client
     command_map["/nick"] = &client::nick;
     command_map["/user"] = &client::user;
     command_map["/privmsg"] = &client::privmsg;
-    // command_map["/FILEMSG"] = &client::filemsg;
+    command_map["/filemsg"] = &client::filemsg;
+    commmand_map["/filestart"] = &client::handle_file_start;
+    // command_map["/filedata"] = &client::handle_file_data;
+    // command_map["/fileend"] = &client::handle_file_end;
     command_map["/quit"] = &client::quit;
 }
 client::client(const client &src)
@@ -138,9 +145,9 @@ std::string client::get_adress_ip()
 
 std::string client::get_port()
 {
-    char buffer[6]; // Assuming port numbers are up to 5 digits (e.g., 65535) + null terminator
-    sprintf(buffer, "%u", this->port); // Format the port as an unsigned integer into the buffer
-    return std::string(buffer); // Construct and return a std::string from the buffer
+    char buffer[6]; 
+    sprintf(buffer, "%u", this->port); 
+    return std::string(buffer);
 }
 
 std::string client::get_password()
@@ -199,19 +206,16 @@ void client::connect(int fd, const std::string& message) {
     std::string thirdArg = count > 3 ? get_word(message, 3) : "";
 
     
-    // Vérifiez si la commande est bien "/connect"
     if (command != "/connect") {
         dprintf(fd, "Error: invalid command\n");
         return;
     }
 
-    // Vérifiez le nombre exact de mots
     if (count != 4) {
         dprintf(fd, "Error: invalid number of arguments\n");
         return;
     }
 
-    // Vérifiez si l'utilisateur est déjà connecté
     if (get_connected()) {
         dprintf(fd, "Error: you are already connected\n");
         return;
@@ -223,7 +227,6 @@ void client::connect(int fd, const std::string& message) {
         return;
     }
  
-    // Définir l'utilisateur comme connecté
     set_connected(true);
     dprintf(fd, "Connected\n");
 }
@@ -298,40 +301,33 @@ void client::user(int fd, const std::string& message) {
     std::string servername = count > 3 ? get_word(message, 3) : "";
     std::string realname = count > 4 ? get_word(message, 4) : "";
 
-    // Vérifiez si la commande est bien "USER"
     if (command != "/user") {
         dprintf(fd, "Error: invalid command\n");
         return;
     }
 
-    // Vérifiez le nombre exact de mots
     if (count != 5) {
         dprintf(fd, "ERR_NEEDMOREPARAMS\n");
         return;
     }
 
-    // Vérifiez si les champs sont valides
     if (username.empty() || hostname.empty() || servername.empty() || realname.empty()) {
         dprintf(fd, "ERR_NEEDMOREPARAMS\n");
         return;
     }
 
-    // Vérifiez si l'utilisateur est déjà enregistré
     if (get_registered()) {
         dprintf(fd, "ERR_ALREADYREGISTRED\n");
         return;
     }
 
-    // Définir les détails de l'utilisateur
     set_username(username);
     set_hostname(hostname);
     set_servername(servername);
     set_realname(realname);
 
-    // Marquer l'utilisateur comme enregistré
     set_registered(true);
 
-    // Confirmer l'enregistrement de l'utilisateur
     dprintf(fd, "User registration completed: %s\n", username.c_str());
 }
 
@@ -405,7 +401,7 @@ void client::privmsg(int fd, const std::string& message)
     else
     {
         client* recipientClient = clientManager->getClient(recipient);
-        if(recipientClient){
+        if(recipientClient && recipientClient->get_fd() != fd){
             dprintf(recipientClient->get_fd(), ":%s PRIVMSG %s :%s\n", get_nickname().c_str(), recipient.c_str(), msg.c_str());
         }
         else
@@ -414,6 +410,61 @@ void client::privmsg(int fd, const std::string& message)
         }
     }
 }
+
+void client::filemsg(int fd, const std::string& message) {
+    if (get_connected() == false) {
+        dprintf(fd, "Error: you are not connected\n");
+        return;
+    }
+    int count = count_words(message);
+    std::string command = count > 0 ? get_word(message, 0) : "";
+    std::string recipient = count > 1 ? get_word(message, 1) : "";
+    std::string filename = count > 2 ? get_word(message, 2) : "";
+
+    if (command != "/filemsg") {
+        dprintf(fd, "Error: invalid command\n");
+        return;
+    }
+
+    if (count != 3) {
+        dprintf(fd, "Error: invalid number of arguments\n");
+        return;
+    }
+
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        dprintf(fd, "Error: file not found\n");
+        return;
+    }
+
+    file.seekg(0, std::ios::end);
+    size_t filesize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    client* recipientClient = clientManager->getClient(recipient);
+    if (!recipientClient || recipientClient->get_fd() == fd){
+        dprintf(fd, "Error: user not found\n");
+        return;
+    }
+
+    dprintf(recipientClient->get_fd(), ":%s /filestart %s %s %zu\n", get_nickname().c_str(), recipient.c_str(), filename.c_str(), filesize);
+
+    bool confirmation_received = true; // a refaire
+
+    if (confirmation_received) {
+        char buffer[4096];
+        while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
+            std::string data(buffer, file.gcount());
+            dprintf(recipientClient->get_fd(), ":%s filedata %s %s :%s\n", get_nickname().c_str(), recipient.c_str(), filename.c_str(), data.c_str());
+        }
+
+        dprintf(recipientClient->get_fd(), ":%s fileend %s %s\n", get_nickname().c_str(), recipient.c_str(), filename.c_str());
+    }
+
+    file.close();
+}
+
+
 client::~client()
 {
     set_connected(false);

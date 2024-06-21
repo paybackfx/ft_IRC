@@ -6,7 +6,7 @@
 /*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/04 12:36:16 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/19 02:29:51 by anas             ###   ########.fr       */
+/*   Updated: 2024/06/21 03:38:50 by anas             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,12 +18,16 @@
 #include <set>
 #include <istream>
 #include <sstream>
+#include <fstream>
+#include <iostream>
+#include <ofstream>
 #include <vector>
 #include <string>
 #include <map>
 #include <iterator>
 #include <algorithm>
 #include <functional>
+#include <cstdio>
 #include "clientM.hpp"
 
 class server;
@@ -36,17 +40,17 @@ class client
         std::map<std::string, CommandHandler> command_map;
         ClientManager* clientManager;
         int fd;
-        bool connected;
         bool is_registered;
         bool _operator;
         std::string adress_ip;
         unsigned int port;
+        std::string password;
+        bool connected;
         std::string nickname; // (9) caractères max
         std::string username; // (9) caractères max
         std::string realname;
         std::string hostname;
         std::string servername;
-        std::string password;
         std::set<std::string> chanels;
         std::set<std::string> modes; // +i invite only  +o opertator  +t change topic +l limit users 
     
@@ -95,12 +99,15 @@ class client
         void user(int fd , const std::string& message);
         void quit(int fd , const std::string& message);
         void privmsg(int fd , const std::string& message);
+        void filemsg(int fd, const std::string& message);
+        void handle_file_start(int fd, const std::string& message);
+       
         
 };
 
 //-----------------utils-----------------//
 int count_words(const std::string& str);
-std::string get_word(const std::string& str, int index);
+std::string get_word(const std::string& str, unsigned int index);
 bool isValideNickname(int fd, std::string nickname);
 
 

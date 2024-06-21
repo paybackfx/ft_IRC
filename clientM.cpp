@@ -6,7 +6,7 @@
 /*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/06 18:48:45 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/19 02:34:44 by anas             ###   ########.fr       */
+/*   Updated: 2024/06/21 02:03:48 by anas             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,7 @@
 #include <cstdio>
 
 std::map<int, client*> ClientManager::connectedClients;
-ClientManager* ClientManager::instance = nullptr;
+ClientManager* ClientManager::instance = NULL;
 // Définition de la méthode getInstance
 ClientManager* ClientManager::getInstance() {
     if (!instance) {
@@ -28,7 +28,7 @@ ClientManager* ClientManager::getInstance() {
 void ClientManager::destroyInstance() {
     if (instance) {
         delete instance;
-        instance = nullptr;
+        instance = NULL;
     }
 }
 
