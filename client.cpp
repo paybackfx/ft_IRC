@@ -6,7 +6,7 @@
 /*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/04 12:37:11 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/21 04:22:02 by anas             ###   ########.fr       */
+/*   Updated: 2024/06/22 05:05:52 by anas             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,10 +20,12 @@ client::client() : clientManager(ClientManager::getInstance()), fd(-1), connecte
     command_map["/privmsg"] = &client::privmsg;
     command_map["/notice"] = &client::privmsg;
     command_map["/filemsg"] = &client::filemsg;
-    commmand_map["/filestart"] = &client::handle_file_start;
-    // command_map["/filedata"] = &client::handle_file_data;
-    // command_map["/fileend"] = &client::handle_file_end;
     command_map["/quit"] = &client::quit;
+    command_map["YES"] = &client::yes_no;
+    command_map["NO"] = &client::yes_no;
+
+
+    
 }
 
 client::client(int fd , unsigned int port, const std::string& password) : clientManager(ClientManager::getInstance()), fd(fd), port(port), password(password), connected(false) {
@@ -33,10 +35,9 @@ client::client(int fd , unsigned int port, const std::string& password) : client
     command_map["/user"] = &client::user;
     command_map["/privmsg"] = &client::privmsg;
     command_map["/filemsg"] = &client::filemsg;
-    commmand_map["/filestart"] = &client::handle_file_start;
-    // command_map["/filedata"] = &client::handle_file_data;
-    // command_map["/fileend"] = &client::handle_file_end;
     command_map["/quit"] = &client::quit;
+    command_map["YES"] = &client::yes_no;
+    command_map["NO"] = &client::yes_no;
 }
 client::client(const client &src)
 {
@@ -127,6 +128,16 @@ void client::set_modes(std::string mode)
     this->modes.insert(mode);
 }
 
+void client::set_save(const std::string save)
+{
+    this->save = save;
+}
+
+void client::set_confirme(int index ,bool confirme)
+{
+    this->confirme[index] = confirme;
+}
+
 void client::del_chanels(std::string chanel)
 {
     this->chanels.erase(chanel);
@@ -182,7 +193,18 @@ int client::get_fd()
 {
     return (this->fd);
 }
-
+bool client::get_confirme(int index)
+{
+    return (this->confirme[index]);
+}
+std::string client::get_save()
+{
+    return (this->save);
+}
+void client::clear_save()
+{
+    this->save.clear();
+}
 //-----------------commands-----------------//
 
 void client::check_cmd(int fd, const std::string& input) {
@@ -437,34 +459,63 @@ void client::filemsg(int fd, const std::string& message) {
         return;
     }
 
-    file.seekg(0, std::ios::end);
-    size_t filesize = file.tellg();
-    file.seekg(0, std::ios::beg);
-
     client* recipientClient = clientManager->getClient(recipient);
-    if (!recipientClient || recipientClient->get_fd() == fd){
+    recipientClient->set_confirme(0, false);
+    recipientClient->set_confirme(1, false);
+    if (!recipientClient || recipientClient->get_fd() == fd) {
         dprintf(fd, "Error: user not found\n");
         return;
     }
 
-    dprintf(recipientClient->get_fd(), ":%s /filestart %s %s %zu\n", get_nickname().c_str(), recipient.c_str(), filename.c_str(), filesize);
-
-    bool confirmation_received = true; // a refaire
-
-    if (confirmation_received) {
-        char buffer[4096];
-        while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
-            std::string data(buffer, file.gcount());
-            dprintf(recipientClient->get_fd(), ":%s filedata %s %s :%s\n", get_nickname().c_str(), recipient.c_str(), filename.c_str(), data.c_str());
-        }
-
-        dprintf(recipientClient->get_fd(), ":%s fileend %s %s\n", get_nickname().c_str(), recipient.c_str(), filename.c_str());
+    
+    char buffer[4096];
+    std::string file_contents;
+    while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
+        file_contents.append(buffer, file.gcount());
     }
+
+    recipientClient->set_save(file_contents);
+    recipientClient->set_confirme(0, true);
+    dprintf(recipientClient->get_fd(),"%s user has sent you a file named %s, do you want to accept it? (YES/NO)\n", get_nickname().c_str(), filename.c_str());
 
     file.close();
 }
 
 
+void client::yes_no(int fd, const std::string& message) {
+    if (get_connected() == false) {
+        dprintf(fd, "Error: you are not connected\n");
+        return;
+    }
+    client* recipientClient = clientManager->getClient(fd);
+    int count = count_words(message);
+    std::string command = count > 0 ? get_word(message, 0) : "";
+
+    if (command != "YES" && command != "NO" ){
+        dprintf(fd, "Error: invalid command\n");
+        return;
+    }
+
+    if (count != 1) {
+        dprintf(fd, "Error: invalid number of arguments\n");
+        return;
+    }
+
+    if (command == "YES" && recipientClient->get_confirme(0)) {
+        recipientClient->set_confirme(1, true); 
+        dprintf(fd, "File transfer accepted\n");
+    } else if (command == "NO" && recipientClient->get_confirme(0)){
+        dprintf(fd, "File transfer refused\n");
+        recipientClient->set_confirme(0, false);
+        recipientClient->set_confirme(1, false);
+    } else {
+        dprintf(fd, "Error: invalid response\n");
+    }
+    if (recipientClient->get_confirme(0) && recipientClient->get_confirme(1)) {
+        dprintf(fd, "%s", recipientClient->get_save().c_str());
+    }
+    recipientClient->clear_save();
+}
 client::~client()
 {
     set_connected(false);

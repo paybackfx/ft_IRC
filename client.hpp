@@ -6,7 +6,7 @@
 /*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/04 12:36:16 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/21 03:38:50 by anas             ###   ########.fr       */
+/*   Updated: 2024/06/22 05:02:42 by anas             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,7 +20,6 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
-#include <ofstream>
 #include <vector>
 #include <string>
 #include <map>
@@ -46,6 +45,8 @@ class client
         unsigned int port;
         std::string password;
         bool connected;
+        bool confirme[2] = {false, false};
+        std::string save;
         std::string nickname; // (9) caractères max
         std::string username; // (9) caractères max
         std::string realname;
@@ -74,8 +75,10 @@ class client
         void set_realname(const std::string realname);
         void set_password(const std::string password);
         void set_operator(bool _operator);
+        void set_save(const std::string save);
         void set_chanels(std::string chanel);
         void set_modes(std::string mode);
+        void set_confirme(int index ,bool confirme);
         void del_chanels(std::string chanel);
         void del_modes(std::string mode);
         bool is_operator();
@@ -85,6 +88,9 @@ class client
         int get_fd();
         bool get_connected();
         bool get_registered();
+        std::string get_save();
+        void clear_save();
+        bool get_confirme(int index);
         std::string get_adress_ip();
         std::string get_port();
         std::string get_nickname();
@@ -100,15 +106,15 @@ class client
         void quit(int fd , const std::string& message);
         void privmsg(int fd , const std::string& message);
         void filemsg(int fd, const std::string& message);
-        void handle_file_start(int fd, const std::string& message);
-       
+        void filestart(int fd, const std::string& message);
+        void yes_no(int fd, const std::string& message);
         
 };
 
 //-----------------utils-----------------//
 int count_words(const std::string& str);
 std::string get_word(const std::string& str, unsigned int index);
-bool isValideNickname(int fd, std::string nickname);
+bool isValideNickname(int fd, std::string& nickname);
 
 
 #endif
