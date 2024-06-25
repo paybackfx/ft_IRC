@@ -6,7 +6,7 @@
 /*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/04 12:37:11 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/22 05:05:52 by anas             ###   ########.fr       */
+/*   Updated: 2024/06/25 22:39:33 by anas             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,13 +14,13 @@
 
 client::client() : clientManager(ClientManager::getInstance()), fd(-1), connected(false) {
 
-    command_map["/connect"] = &client::connect;
-    command_map["/nick"] = &client::nick;
-    command_map["/user"] = &client::user;
-    command_map["/privmsg"] = &client::privmsg;
-    command_map["/notice"] = &client::privmsg;
-    command_map["/filemsg"] = &client::filemsg;
-    command_map["/quit"] = &client::quit;
+    command_map["connect"] = &client::connect;
+    command_map["nick"] = &client::nick;
+    command_map["user"] = &client::user;
+    command_map["privmsg"] = &client::privmsg;
+    command_map["notice"] = &client::privmsg;
+    command_map["filemsg"] = &client::filemsg;
+    command_map["quit"] = &client::quit;
     command_map["YES"] = &client::yes_no;
     command_map["NO"] = &client::yes_no;
 
@@ -30,12 +30,12 @@ client::client() : clientManager(ClientManager::getInstance()), fd(-1), connecte
 
 client::client(int fd , unsigned int port, const std::string& password) : clientManager(ClientManager::getInstance()), fd(fd), port(port), password(password), connected(false) {
 
-    command_map["/connect"] = &client::connect;
-    command_map["/nick"] = &client::nick;
-    command_map["/user"] = &client::user;
-    command_map["/privmsg"] = &client::privmsg;
-    command_map["/filemsg"] = &client::filemsg;
-    command_map["/quit"] = &client::quit;
+    command_map["connect"] = &client::connect;
+    command_map["nick"] = &client::nick;
+    command_map["user"] = &client::user;
+    command_map["privmsg"] = &client::privmsg;
+    command_map["filemsg"] = &client::filemsg;
+    command_map["quit"] = &client::quit;
     command_map["YES"] = &client::yes_no;
     command_map["NO"] = &client::yes_no;
 }
@@ -221,20 +221,21 @@ void client::check_cmd(int fd, const std::string& input) {
 }
 
 void client::connect(int fd, const std::string& message) {
-    int count = count_words(message);
-    std::string command = count > 0 ? get_word(message, 0) : "";
-    std::string firstArg = count > 1 ? get_word(message, 1) : "";
-    std::string secondArg = count > 2 ? get_word(message, 2) : "";
-    std::string thirdArg = count > 3 ? get_word(message, 3) : "";
-
-    
-    if (command != "/connect") {
-        dprintf(fd, "Error: invalid command\n");
+    if(get_connected())
+    {
+        dprintf(fd, "Error: you are already connected\n");
         return;
     }
+    
+    std::vector<std::string> args;
+    std::istringstream iss(message);
+    std::string token;
+    while (iss >> token) {
+        args.push_back(token);
+    }
 
-    if (count != 4) {
-        dprintf(fd, "Error: invalid number of arguments\n");
+    if (args.size() != 4 && !(args[0] == "/connect" || args[0] == "connect")){
+        dprintf(fd, "Error: invalid command or number of arguments\n");
         return;
     }
 
@@ -242,40 +243,39 @@ void client::connect(int fd, const std::string& message) {
         dprintf(fd, "Error: you are already connected\n");
         return;
     }
-    
-    if(get_password() != thirdArg || get_port() != secondArg)
-    {
+
+    if (get_password() != args[3] || get_port() != args[2]) {
         dprintf(fd, "Error: invalid password or port\n");
         return;
     }
- 
+
     set_connected(true);
     dprintf(fd, "Connected\n");
 }
 
-
 void client::nick(int fd, const std::string& message) {
-    
-    if(get_connected() == false)
-    {
+    if (!get_connected()) {
         dprintf(fd, "Error: you are not connected\n");
         return;
     }
-    int count = count_words(message);
-    std::string firstWord = count > 0 ? get_word(message, 0) : "";
-    std::string secondWord = count > 1 ? get_word(message, 1) : "";
-    std::string thirdWord = count > 2 ? get_word(message, 2) : "";
+
+    std::vector<std::string> args;
+    std::istringstream iss(message);
+    std::string token;
+    while (iss >> token) {
+        args.push_back(token);
+    }
+
     std::string currentNick = get_nickname();
 
-    if (count == 1 && firstWord == "/nick") {
+    if (args.size() == 1 && (args[0] == "/nick" || args[0] == "nick")) {
         if (currentNick.empty()) {
             dprintf(fd, "ERR_NONICKNAMEGIVEN\n");
         } else {
             dprintf(fd, "Your nickname is: %s\n", currentNick.c_str());
         }
-    }
-    else if (count == 2 && firstWord == "/nick") {
-        std::string newNick = secondWord;
+    } else if (args.size() == 2 && (args[0] == "/nick" || args[0] == "nick")) {
+        std::string newNick = args[1];
         if (!isValideNickname(fd, newNick)) return;
 
         if (clientManager->nicknameUsed(newNick)) {
@@ -284,14 +284,13 @@ void client::nick(int fd, const std::string& message) {
             set_nickname(newNick);
             dprintf(fd, "Your nickname has been changed to: %s\n", newNick.c_str());
         }
-    }
-    else if (count == 3 && secondWord == "/nick") {
-        std::string newNick = thirdWord;
+    } else if (args.size() == 3 && (args[1] == "/nick" || args[1] == "nick")) {
+        std::string newNick = args[2];
         if (!isValideNickname(fd, newNick)) return;
 
         if (currentNick.empty()) {
             dprintf(fd, "ERR_NONICKNAMEGIVEN\n");
-        } else if (firstWord != currentNick) {
+        } else if (args[0] != currentNick) {
             dprintf(fd, "ERR_NONMATCHNICKNAME\n");
         } else if (clientManager->nicknameUsed(newNick)) {
             dprintf(fd, "ERR_NICKNAMEINUSE\n");
@@ -299,41 +298,27 @@ void client::nick(int fd, const std::string& message) {
             set_nickname(newNick);
             dprintf(fd, "Your nickname has been changed to: %s\n", newNick.c_str());
         }
-    }
-    else if (count == 2 && secondWord == "/nick") {
+    } else if (args.size() == 2 && args[1] == "/nick") {
         dprintf(fd, "ERR_NONICKNAMEGIVEN\n");
-    }
-    else {
+    } else {
         dprintf(fd, "Error: invalid command\n");
     }
 }
 
 void client::user(int fd, const std::string& message) {
-    
-    if(get_connected() == false)
-    {
+    if (!get_connected()) {
         dprintf(fd, "Error: you are not connected\n");
         return;
     }
-    
-    int count = count_words(message);
-    std::string command = count > 0 ? get_word(message, 0) : "";
-    std::string username = count > 1 ? get_word(message, 1) : "";
-    std::string hostname = count > 2 ? get_word(message, 2) : "";
-    std::string servername = count > 3 ? get_word(message, 3) : "";
-    std::string realname = count > 4 ? get_word(message, 4) : "";
 
-    if (command != "/user") {
-        dprintf(fd, "Error: invalid command\n");
-        return;
+    std::vector<std::string> args;
+    std::istringstream iss(message);
+    std::string token;
+    while (iss >> token) {
+        args.push_back(token);
     }
 
-    if (count != 5) {
-        dprintf(fd, "ERR_NEEDMOREPARAMS\n");
-        return;
-    }
-
-    if (username.empty() || hostname.empty() || servername.empty() || realname.empty()) {
+    if (args.size() != 5 && !(args[0] == "/user" || args[0] == "user")) {
         dprintf(fd, "ERR_NEEDMOREPARAMS\n");
         return;
     }
@@ -343,95 +328,109 @@ void client::user(int fd, const std::string& message) {
         return;
     }
 
+    std::string username = args[1];
+    std::string hostname = args[2];
+    std::string servername = args[3];
+    std::string realname = args[4];
+
+    if (username.empty() || hostname.empty() || servername.empty() || realname.empty()) {
+        dprintf(fd, "ERR_NEEDMOREPARAMS\n");
+        return;
+    }
+
     set_username(username);
     set_hostname(hostname);
     set_servername(servername);
     set_realname(realname);
-
     set_registered(true);
 
     dprintf(fd, "User registration completed: %s\n", username.c_str());
 }
 
-void client::quit(int fd , const std::string& message)
-{
-    if(get_connected() == false)
-    {
+
+void client::quit(int fd, const std::string& message) {
+    if (!get_connected()) {
         dprintf(fd, "Error: you are not connected\n");
         return;
     }
-    int count = count_words(message);
-    if (count == 1 && get_word(message, 0) == "/quit")
-    {
+
+    std::vector<std::string> args;
+    std::istringstream iss(message);
+    std::string token;
+    while (iss >> token) {
+        args.push_back(token);
+    }
+
+    if (args.empty() && !( args[0] == "/quit" || args[0] == "quit")){
+        dprintf(fd, "Error: invalid command\n");
+        return;
+    }
+
+    if (args.size() == 1) {
         set_connected(false);
         dprintf(fd, "Disconnected from %s:%s\n", get_adress_ip().c_str(), get_port().c_str());
         return;
     }
-    else if (count > 1 && get_word(message, 0) == "/quit") 
-    {
+
+    if (args.size() > 1) {
         size_t pos = message.find(":");
-        std::string reason = message.substr(pos + 1);
-        if(pos != std::string::npos)
-        {
+        if (pos != std::string::npos) {
+            std::string reason = message.substr(pos + 1);
             clientManager->broadcastToAll(get_nickname() + " has quit (" + reason + ")", fd);
-            set_connected(false);  
+            set_connected(false);
+            return;
         }
     }
-    else
-    {
-        dprintf(fd, "Error: invalid command\n");
-        return;
-    }
+
+    dprintf(fd, "Error: invalid command\n");
 }
 
-void client::privmsg(int fd, const std::string& message)
-{
-    if(get_connected() == false )
-    {
+
+void client::privmsg(int fd, const std::string& message) {
+    if (!get_connected()) {
         dprintf(fd, "Error: you are not connected\n");
         return;
     }
-    int count = count_words(message);
-    std :: string command = count > 0 ? get_word(message, 0) : "";
-    std:: string recipient = count > 1 ? get_word(message, 1) : "";
-    std:: string msg;
-    
-    if (command != "/privmsg")
-    {
+
+    std::vector<std::string> args;
+    std::istringstream iss(message);
+    std::string token;
+    while (iss >> token) {
+        args.push_back(token);
+    }
+
+    if (args.empty() && !( args[0] == "/privmsg" || args[0] == "privmsg")){
         dprintf(fd, "Error: invalid command\n");
         return;
     }
-    if (count < 3)
-    {
+
+    if (args.size() < 3) {
         dprintf(fd, "Error: invalid number of arguments\n");
         return;
     }
-    size_t pos = message.find(":"); 
-    if (pos != std::string::npos)
-    {
-        msg = message.substr(pos + 1);
-    }
-    else
-    {
+
+    std::string recipient = args[1];
+    size_t pos = message.find(":");
+    if (pos == std::string::npos) {
         dprintf(fd, "Error: invalid message\n");
         return;
     }
 
-    if(recipient[0] == '#')
-    {//waiting chanels ;
-    }
-    else
-    {
+    std::string msg = message.substr(pos + 1);
+
+    if (recipient[0] == '#') {
+        // Code to handle messages to channels, e.g.:
+        // clientManager->sendMessageToChannel(recipient, msg, fd);
+    } else {
         client* recipientClient = clientManager->getClient(recipient);
-        if(recipientClient && recipientClient->get_fd() != fd){
+        if (recipientClient && recipientClient->get_fd() != fd) {
             dprintf(recipientClient->get_fd(), ":%s PRIVMSG %s :%s\n", get_nickname().c_str(), recipient.c_str(), msg.c_str());
-        }
-        else
-        {
+        } else {
             dprintf(fd, "Error: user not found\n");
         }
     }
 }
+
 
 void client::filemsg(int fd, const std::string& message) {
     if (get_connected() == false) {
@@ -443,7 +442,7 @@ void client::filemsg(int fd, const std::string& message) {
     std::string recipient = count > 1 ? get_word(message, 1) : "";
     std::string filename = count > 2 ? get_word(message, 2) : "";
 
-    if (command != "/filemsg") {
+    if (!(command == "/filemsg" || command == "filemsg")) {
         dprintf(fd, "Error: invalid command\n");
         return;
     }
@@ -513,6 +512,7 @@ void client::yes_no(int fd, const std::string& message) {
     }
     if (recipientClient->get_confirme(0) && recipientClient->get_confirme(1)) {
         dprintf(fd, "%s", recipientClient->get_save().c_str());
+        dprintf(fd, "\nfile transfer completed\n");
     }
     recipientClient->clear_save();
 }
