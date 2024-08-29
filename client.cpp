@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
+/*   By: afennoun <afennoun@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/04 12:37:11 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/25 22:39:33 by anas             ###   ########.fr       */
+/*   Updated: 2024/08/29 15:21:48 by afennoun         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -448,6 +448,7 @@ void client::quit(int fd, const std::string& message) {
             std::string reason = message.substr(pos + 1);
             clientManager->broadcastToAll(get_nickname() + " has quit (" + reason + ")", fd);
             clientManager->removeClient(fd);
+            dprintf(fd,"click to exit terminal\n"); 
             close(fd);
             return;
         }
