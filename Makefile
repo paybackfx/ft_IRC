@@ -10,9 +10,9 @@
 #                                                                              #
 # **************************************************************************** #
 
-CXXFLAGS = -Wall -Wextra -Werror -std=c++17 -fsanitize=address -g3
+CXXFLAGS = -std=c++98 -fsanitize=address -g3
 CXX = c++
-SRCS = ./IRC/ircserv.cpp ./IRC/server.cpp client.cpp clientM.cpp utils.cpp
+SRCS = ./IRC/ircserv.cpp ./IRC/server.cpp client.cpp clientM.cpp utils.cpp ./IRC/channel.cpp
 OBJS = $(SRCS:.cpp=.o) 
 
 NAME = ircserv

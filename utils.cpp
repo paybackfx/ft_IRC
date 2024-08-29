@@ -51,3 +51,70 @@ bool isValideNickname(int fd, std::string& nickname)
     return true;
 }
 
+bool isValidChannelName(const std::string& channelName) {
+    if (channelName.empty() || channelName.size() > 200) {
+        return false;
+    }
+    if (channelName[0] != '#' && channelName[0] != '&') {
+        return false;
+    }
+    if (channelName.find(' ') != std::string::npos ||
+        channelName.find('\x07') != std::string::npos ||
+        channelName.find(',') != std::string::npos) {
+            return false;
+    }
+    return true;
+}
+
+std::vector<std::string> split(const std::string& str, char delimiter) {
+    std::vector<std::string> tokens;
+    std::stringstream ss(str);
+    std::string token;
+    
+    while (std::getline(ss, token, delimiter)) {
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+void sendError(int fd, const std::string& errorCode, const std::string& channelName) {
+    std::string errorMessage;
+    
+    if (errorCode == "ERR_NOSUCHCHANNEL") {
+        errorMessage = "403 " + channelName + " :No such channel\r\n";
+    } else if (errorCode == "ERR_INVITEONLYCHAN") {
+        errorMessage = "473 " + channelName + " :Cannot join channel (invite only)\r\n";
+    } else if (errorCode == "ERR_BANNEDFROMCHAN") {
+        errorMessage = "474 " + channelName + " :Cannot join channel (banned)\r\n";
+    } else if (errorCode == "ERR_BADCHANNELKEY") {
+        errorMessage = "475 " + channelName + " :Cannot join channel (bad key)\r\n";
+    } else if (errorCode == "ERR_NEEDMOREPARAMS") {
+        errorMessage = "461 " + channelName + " :Not enough parameters\r\n";
+    } else if (errorCode == "ERR_CHANOPRIVSNEEDED") {
+        errorMessage = "482 " + channelName + " :You're not channel operator\r\n";
+    } else if (errorCode == "ERR_USERNOTINCHANNEL") {
+        errorMessage = "441 " + channelName + " :They aren't on that channel\r\n";
+    }
+    else if (errorCode == "ERR_CHANNELISFULL") {
+        errorMessage = "471" + channelName + " : the channel is full\r\n";
+    }
+
+    // Send the error message to the client using dprintf
+    dprintf(fd, "%s", errorMessage.c_str());
+}
+
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(' ');
+    size_t last = str.find_last_not_of(' ');
+    return (first == std::string::npos || last == std::string::npos) ? "" : str.substr(first, last - first + 1);
+}
+
+
+std::string toLowerCase(const std::string& str) {
+    std::string lowerStr = str;
+    for (std::string::size_type i = 0; i < lowerStr.size(); ++i) {
+        lowerStr[i] = std::tolower(static_cast<unsigned char>(lowerStr[i]));
+    }
+    return lowerStr;
+}

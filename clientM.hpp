@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   clientM.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
+/*   By: afennoun <afennoun@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/06 18:47:47 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/19 02:34:28 by anas             ###   ########.fr       */
+/*   Updated: 2024/08/29 14:16:08 by afennoun         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,13 +16,16 @@
 #include <map>
 #include <string>
 
+#include "./IRC/channel.hpp"
 class client; // Déclaration avant utilisation de la classe client
-
+class  Channel;
 class ClientManager {
 private:
     
     static ClientManager* instance;
     static std::map<int, client*> connectedClients; // Stocker des pointeurs vers des clients
+    static std::map<std::string, Channel*> channels; // Map of channels
+
 public:
     ClientManager() {}
     static ClientManager* getInstance();
@@ -38,6 +41,14 @@ public:
     bool isClient(std::string nickname);
     bool isClientByUsername(std::string username);
     void broadcastToAll(const std::string& message, int excludedClientFd );
+    void free_all();
+
+
+     // Channel management
+    void addChannel(const std::string& name);
+    void removeChannel(const std::string& name);
+    Channel* getChannel(const std::string& channelName);
+    bool isChannel(const std::string& name);
 };
 
 #endif

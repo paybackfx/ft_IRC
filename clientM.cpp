@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   clientM.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
+/*   By: afennoun <afennoun@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/06 18:48:45 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/21 02:03:48 by anas             ###   ########.fr       */
+/*   Updated: 2024/08/29 14:20:29 by afennoun         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,10 @@
 #include <cstdio>
 
 std::map<int, client*> ClientManager::connectedClients;
+std::map<std::string, Channel*> ClientManager::channels;
 ClientManager* ClientManager::instance = NULL;
+
+
 // Définition de la méthode getInstance
 ClientManager* ClientManager::getInstance() {
     if (!instance) {
@@ -39,6 +42,8 @@ void ClientManager::addClient(int clientFd, client* newClient) {
     }
 
 void ClientManager::removeClient(int clientFd) {
+        
+        delete connectedClients[clientFd]; // Supprimer le client
         connectedClients.erase(clientFd);
     }
 
@@ -56,7 +61,7 @@ client* ClientManager::getClient(std::string nickname) {
             }
         }
         return NULL;
-    }
+}
 bool ClientManager::isClientConnected(int clientFd) {
         return connectedClients.find(clientFd) != connectedClients.end();
     }
@@ -112,3 +117,53 @@ void ClientManager::broadcastToAll(const std::string& message, int excludedClien
             }
         }
     }
+
+
+//Channel management 
+void ClientManager::addChannel(const std::string& name) {
+    std::string lowerName = toLowerCase(name);
+    if (!isChannel(lowerName)) {
+        channels[lowerName] = new Channel(lowerName);
+    }
+}
+
+
+void ClientManager::removeChannel(const std::string& name) {
+    if (isChannel(name)) {
+        delete channels[name];
+        channels.erase(name);
+    }
+}
+
+Channel* ClientManager::getChannel(const std::string& channelName) {
+    std::string lowerChannelName = toLowerCase(channelName);
+    std::cout << "getChannel called with: " << lowerChannelName << std::endl;
+    std::cout << "Channel map size: " << channels.size() << std::endl;
+
+    if (channels.find(lowerChannelName) != channels.end()) {
+        std::cout << "Channel found: " << lowerChannelName << std::endl;
+        return channels[lowerChannelName];
+    } else {
+        std::cout << "Channel not found: " << lowerChannelName << std::endl;
+        return NULL;
+    }
+}
+
+
+bool ClientManager::isChannel(const std::string& name) {
+    return channels.find(name) != channels.end();
+}
+
+void ClientManager::free_all() {
+    for (std::map<int, client*>::iterator it = connectedClients.begin(); it != connectedClients.end(); it++) {
+        delete it->second;
+    }
+    connectedClients.clear();
+
+    for (std::map<std::string, Channel*>::iterator it = channels.begin(); it != channels.end(); it++) {
+        delete it->second;
+    }
+    channels.clear();
+    
+    delete instance; // Supprimer l'instance de ClientManager
+}

@@ -26,11 +26,12 @@
 #include <iterator>
 #include <algorithm>
 #include <functional>
+#include <fstream>
 #include <cstdio>
 #include "clientM.hpp"
 
 class server;
-class ClientManager;
+//class ClientManager;
 class client
 {
     private:
@@ -45,7 +46,7 @@ class client
         unsigned int port;
         std::string password;
         bool connected;
-        bool confirme[2] = {false, false};
+        bool confirme[2];
         std::string save;
         std::string nickname; // (9) caractères max
         std::string username; // (9) caractères max
@@ -96,6 +97,8 @@ class client
         std::string get_nickname();
         std::string get_username();
         std::string get_password();
+        std::string get_hostname();
+        std::string server_hostname();
     
 
         //-----------------commands-----------------//
@@ -109,12 +112,22 @@ class client
         void filestart(int fd, const std::string& message);
         void yes_no(int fd, const std::string& message);
         
+        void join(int fd, const std::string& message);
+        void kick(int fd, const std::string& message);
+        void invite(int fd, const std::string& message);
+        void topic(int fd, const std::string& message);
+        void mode(int fd, const std::string& message);
+        //void part(int fd, const std::string& message);
+        
 };
 
 //-----------------utils-----------------//
 int count_words(const std::string& str);
 std::string get_word(const std::string& str, unsigned int index);
 bool isValideNickname(int fd, std::string& nickname);
-
-
+bool isValidChannelName(const std::string& channelName);
+std::vector<std::string> split(const std::string& str, char delimiter);
+void sendError(int fd, const std::string& errorCode, const std::string& channelName);
+std::string trim(const std::string& str);
+std::string toLowerCase(const std::string& str) ;
 #endif
