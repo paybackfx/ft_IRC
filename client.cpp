@@ -436,8 +436,8 @@ void client::quit(int fd, const std::string& message) {
 
     if (args.size() == 1) {
         //set_connected(false);
-        clientManager->removeClient(fd);
         dprintf(fd, "Disconnected from %s:%s\n", get_adress_ip().c_str(), get_port().c_str());
+        clientManager->removeClient(fd);
         close(fd);
         return;
     }
