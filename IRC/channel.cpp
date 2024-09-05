@@ -116,6 +116,21 @@ int Channel::getUserLimit() const
     return this->limit;
 }
 
+client *Channel::getMember(const std::string &nickname) const
+{
+    std::vector<client *> members = getMembers();
+    std::vector<client *>::const_iterator it;
+
+    for (it = members.begin(); it != members.end(); ++it)
+    {
+        if ((*it)->get_nickname() == nickname)
+        {
+            return *it;
+        }
+    }
+    return NULL;
+}
+
 bool Channel::hasUserLimit() const
 {
     return limit > 0;

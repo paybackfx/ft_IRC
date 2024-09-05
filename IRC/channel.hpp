@@ -58,6 +58,7 @@ public:
     std::string getName() const;
     std::vector<client *> getMembers() const;
     int getMemberCount() const;
+    client *getMember(const std::string &nickname) const;
 
     void kickMember(client *client, const std::string &reason);
     void changeTopic(client *client, const std::string &newTopic);

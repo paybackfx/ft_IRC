@@ -6,7 +6,7 @@
 /*   By: afennoun <afennoun@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/04 12:37:11 by afennoun          #+#    #+#             */
-/*   Updated: 2024/09/05 02:32:51 by afennoun         ###   ########.fr       */
+/*   Updated: 2024/09/05 16:18:22 by afennoun         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -366,7 +366,8 @@ void client::nick(int fd, const std::string &message)
             dprintf(fd, "ERR_NICKNAMEINUSE\n");
         }
         else
-        {   if(count)
+        {
+            if (count)
                 dprintf(fd, "use this format <currentNick> NICK <newNICK>\n");
             else
             {
@@ -374,7 +375,6 @@ void client::nick(int fd, const std::string &message)
                 set_nickname(newNick);
                 dprintf(fd, "Your nickname is: %s\n", newNick.c_str());
             }
-            
         }
     }
     else if (args.size() == 3 && (args[1] == "NICK"))
@@ -878,7 +878,7 @@ void client::kick(int fd, const std::string &message)
     }
     else
     {
-        dprintf(fd, "%s", RED "Target is an operator" RESET);
+        dprintf(fd, "%s", RED "Target is an operator\n" RESET);
         return;
     }
     std::string kickMessageFormatted = kickMessage.empty() ? "" : " :" + kickMessage;
@@ -1031,7 +1031,7 @@ void client::topic(int fd, const std::string &message)
     }
 }
 
-// MODE #channelName +/-mode
+// MODE #channelName +/-mode nickname
 void client::mode(int fd, const std::string &message)
 {
     if (!get_connected())
@@ -1161,7 +1161,8 @@ void client::mode(int fd, const std::string &message)
         case 'o':
             if (addMode)
             {
-                channel->addOperator(this);
+                client *newOp = channel->getMember(modeParam);
+                channel->addOperator(newOp);
                 appliedModes += "+o";
                 appliedParams += " " + modeParam;
             }
