@@ -16,13 +16,11 @@ int main(int argc ,char **argv)
 {
     if(argc == 3)
     {
-        signal(SIGPIPE, SIG_IGN);
-        signal(SIGINT , server::sig_handler);
-        signal(SIGQUIT , server::sig_handler);
         std::string first_arg(argv[1]);
         std::string second_arg(argv[2]);
         server ser(first_arg,second_arg);
         ser.create_server();
+       // std::cout << ser.server_socket << std::endl;
     }
     else
         std::cerr << "Error: usage --> ./ircserv <port> <password>" 

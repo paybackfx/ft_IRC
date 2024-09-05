@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   utils.cpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
+/*   By: afennoun <afennoun@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/06 21:43:48 by afennoun          #+#    #+#             */
-/*   Updated: 2024/06/22 04:29:20 by anas             ###   ########.fr       */
+/*   Updated: 2024/09/05 01:49:06 by afennoun         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,10 @@ std::string get_word(const std::string& str, unsigned int index) {
 bool isValideNickname(int fd, std::string& nickname)
 {
     if (nickname.length() > 9)
-        return false;
+        {
+            dprintf(fd, "ERR_ERRONEUSNICKNAME\n");
+            return false;
+        }
     for (unsigned int  i = 0; i < nickname.length(); i++)
     {
         if (!std::isalnum(nickname[i])){

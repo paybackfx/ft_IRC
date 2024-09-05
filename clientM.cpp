@@ -14,13 +14,14 @@
 #include "client.hpp"
 #include <unistd.h>
 #include <cstdio>
+#include <sys/epoll.h>
+
 
 std::map<int, client*> ClientManager::connectedClients;
 std::map<std::string, Channel*> ClientManager::channels;
 ClientManager* ClientManager::instance = NULL;
 
-
-// Définition de la méthode getInstance
+int fd_epoll = 0;
 ClientManager* ClientManager::getInstance() {
     if (!instance) {
         instance = new ClientManager();
@@ -37,15 +38,18 @@ void ClientManager::destroyInstance() {
 
 void ClientManager::addClient(int clientFd, client* newClient) {
         
-        dprintf(clientFd, "Welcome to the IRC server\n %d\n", clientFd);
+        dprintf(clientFd, "Welcome to the IRC server %d\n", clientFd);
         connectedClients[clientFd] = newClient;
     }
 
 void ClientManager::removeClient(int clientFd) {
         
-        delete connectedClients[clientFd]; // Supprimer le client
+         delete connectedClients[clientFd]; 
         connectedClients.erase(clientFd);
+        epoll_ctl(fd_epoll, EPOLL_CTL_DEL, clientFd, NULL);
+        close(clientFd);
     }
+    //CONNECT 127.0.0.1 8888 8888 
 
 client* ClientManager::getClient(int clientFd) {
 

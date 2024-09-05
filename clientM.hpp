@@ -17,6 +17,7 @@
 #include <string>
 
 #include "./IRC/channel.hpp"
+extern int fd_epoll;
 class client; // Déclaration avant utilisation de la classe client
 class  Channel;
 class ClientManager {
