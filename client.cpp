@@ -36,30 +36,30 @@
 
 // std::string server_hostname = "localhost";
 
-client::client() : clientManager(ClientManager::getInstance()), fd(-1), connected(false)
-{
+// client::client() : clientManager(ClientManager::getInstance()), fd(-1), connected(false)
+// {
 
-    confirme[0] = false;
-    confirme[1] = false;
-    command_map["CONNECT "] = &client::connect;
-    command_map["NICK "] = &client::nick;
-    command_map["USER "] = &client::user;
-    command_map["PRIVMSG "] = &client::privmsg;
-    command_map["NOTICE "] = &client::privmsg;
-    command_map["FILEMSG "] = &client::filemsg;
-    command_map["QUIT "] = &client::quit;
-    command_map["YES "] = &client::yes_no;
-    command_map["NO "] = &client::yes_no;
+//     confirme[0] = false;
+//     confirme[1] = false;
+//     command_map["CONNECT "] = &client::connect;
+//     command_map["NICK "] = &client::nick;
+//     command_map["USER "] = &client::user;
+//     command_map["PRIVMSG "] = &client::privmsg;
+//     command_map["NOTICE "] = &client::privmsg;
+//     command_map["FILEMSG "] = &client::filemsg;
+//     command_map["QUIT "] = &client::quit;
+//     command_map["YES "] = &client::yes_no;
+//     command_map["NO "] = &client::yes_no;
 
-    // command_map["JOIN"] = &client::join;
-    // command_map["KICK"] = &client::kick;
-    command_map["JOIN "] = &client::join;
-    command_map["KICK "] = &client::kick;
-    command_map["INVITE "] = &client::invite;
-    command_map["TOPIC "] = &client::topic;
-    command_map["MODE "] = &client::mode;
-    command_map["PART "] = &client::part;
-}
+//     // command_map["JOIN"] = &client::join;
+//     // command_map["KICK"] = &client::kick;
+//     command_map["JOIN "] = &client::join;
+//     command_map["KICK "] = &client::kick;
+//     command_map["INVITE "] = &client::invite;
+//     command_map["TOPIC "] = &client::topic;
+//     command_map["MODE "] = &client::mode;
+//     command_map["PART "] = &client::part;
+// }
 
 client::client(int fd, unsigned int port, const std::string &password) : clientManager(ClientManager::getInstance()), fd(fd), port(port), password(password), connected(false)
 {
@@ -70,22 +70,22 @@ client::client(int fd, unsigned int port, const std::string &password) : clientM
     fd1 << fd;
     this->nickname = "nick_" + fd1.str();
     this->count = false;
-    command_map["CONNECT"] = &client::connect;
-    command_map["NICK"] = &client::nick;
-    command_map["USER"] = &client::user;
-    command_map["PRIVMSG"] = &client::privmsg;
-    command_map["NOTICE"] = &client::privmsg;
-    command_map["FILEMSG"] = &client::filemsg;
-    command_map["QUIT"] = &client::quit;
-    command_map["YES"] = &client::yes_no;
-    command_map["NO"] = &client::yes_no;
+    command_map["CONNECT "] = &client::connect;
+    command_map["NICK "] = &client::nick;
+    command_map["USER "] = &client::user;
+    command_map["PRIVMSG "] = &client::privmsg;
+    command_map["NOTICE "] = &client::privmsg;
+    command_map["FILEMSG "] = &client::filemsg;
+    command_map["QUIT "] = &client::quit;
+    command_map["YES "] = &client::yes_no;
+    command_map["NO "] = &client::yes_no;
 
-    command_map["JOIN"] = &client::join;
-    command_map["KICK"] = &client::kick;
-    command_map["INVITE"] = &client::invite;
-    command_map["TOPIC"] = &client::topic;
-    command_map["MODE"] = &client::mode;
-    command_map["PART"] = &client::part;
+    command_map["JOIN "] = &client::join;
+    command_map["KICK "] = &client::kick;
+    command_map["INVITE "] = &client::invite;
+    command_map["TOPIC "] = &client::topic;
+    command_map["MODE "] = &client::mode;
+    command_map["PART "] = &client::part;
 }
 
 client::client(const client &src)
