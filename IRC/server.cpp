@@ -38,12 +38,13 @@
 
         server::server(server& server): port(server.port), password(server.password)
         {
-
+            
         }
 
         void server::sig_handler(int signum)
         {
             signal_has_recieve = true;
+
             std::cout << "signal to CLOSE THE SERVER  has recieve " << signum << std::endl;
         }
 
@@ -177,10 +178,12 @@
                     
             }
             if (recv_byte <=  0)
-            {
+            {   
+                //std::cout << "Im here" <<std::endl;
                 this->mab.erase(fd);
                 if (epoll_ctl(fd_epoll, EPOLL_CTL_DEL, fd, NULL) == -1) 
                     std::cerr << "epoll_ctl: EPOLL_CTL_DEL" << std::endl;
+                clientManager->removeClientFromChannels(fd);
                 clientManager->removeClient(fd);
                 close(fd);
             }

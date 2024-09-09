@@ -41,24 +41,24 @@ client::client() : clientManager(ClientManager::getInstance()), fd(-1), connecte
 
     confirme[0] = false;
     confirme[1] = false;
-    command_map["CONNECT"] = &client::connect;
-    command_map["NICK"] = &client::nick;
-    command_map["USER"] = &client::user;
-    command_map["PRIVMSG"] = &client::privmsg;
-    command_map["NOTICE"] = &client::privmsg;
-    command_map["FILEMSG"] = &client::filemsg;
-    command_map["QUIT"] = &client::quit;
-    command_map["YES"] = &client::yes_no;
-    command_map["NO"] = &client::yes_no;
+    command_map["CONNECT "] = &client::connect;
+    command_map["NICK "] = &client::nick;
+    command_map["USER "] = &client::user;
+    command_map["PRIVMSG "] = &client::privmsg;
+    command_map["NOTICE "] = &client::privmsg;
+    command_map["FILEMSG "] = &client::filemsg;
+    command_map["QUIT "] = &client::quit;
+    command_map["YES "] = &client::yes_no;
+    command_map["NO "] = &client::yes_no;
 
     // command_map["JOIN"] = &client::join;
     // command_map["KICK"] = &client::kick;
-    command_map["JOIN"] = &client::join;
-    command_map["KICK"] = &client::kick;
-    command_map["INVITE"] = &client::invite;
-    command_map["TOPIC"] = &client::topic;
-    command_map["MODE"] = &client::mode;
-    command_map["PART"] = &client::part;
+    command_map["JOIN "] = &client::join;
+    command_map["KICK "] = &client::kick;
+    command_map["INVITE "] = &client::invite;
+    command_map["TOPIC "] = &client::topic;
+    command_map["MODE "] = &client::mode;
+    command_map["PART "] = &client::part;
 }
 
 client::client(int fd, unsigned int port, const std::string &password) : clientManager(ClientManager::getInstance()), fd(fd), port(port), password(password), connected(false)
@@ -467,6 +467,7 @@ void client::quit(int fd, const std::string &message)
         return;
     }
 
+    // Split the message into parts
     std::vector<std::string> args;
     std::istringstream iss(message);
     std::string token;
@@ -475,37 +476,54 @@ void client::quit(int fd, const std::string &message)
         args.push_back(token);
     }
 
-    if (args.empty() && !(args[0] == "QUIT"))
+    // Check for the valid QUIT command
+    if (args.empty() || args[0] != "QUIT")
     {
         dprintf(fd, "Error: invalid command\n");
         return;
     }
 
+    // Handle case where there's no reason provided
     if (args.size() == 1)
     {
         set_connected(false);
         dprintf(fd, "Disconnected from %s:%s\n", get_adress_ip().c_str(), get_port().c_str());
-        dprintf(fd, "click a key  to exit terminal\n");
+        dprintf(fd, "Press any key to exit terminal\n");
+
+        // Remove client from all channels
+        clientManager->removeClientFromChannels(fd);
+        
+        // Remove client and close connection
         clientManager->removeClient(fd);
         close(fd);
         return;
     }
 
+    // Handle case where a reason for quitting is provided
     if (args.size() > 1)
     {
         size_t pos = message.find(":");
         if (pos != std::string::npos)
         {
             std::string reason = message.substr(pos + 1);
-            dprintf(fd, "click to exit terminal\n");
-            clientManager->broadcastToAll(get_nickname() + " has quit (" + reason + ")", fd);
+            dprintf(fd, "Press any key to exit terminal\n");
+
+            // Broadcast the quit message to all channels
+            clientManager->broadcastToAll(get_nickname() + " has quit (" + reason + ") \n", fd);
+
+            // Remove client from all channels
+            clientManager->removeClientFromChannels(fd);
+            
+            // Remove client fron clientManager and close connection
             clientManager->removeClient(fd);
+            close(fd);
             return;
         }
     }
 
     dprintf(fd, "Error: invalid command\n");
 }
+
 
 void client::privmsg(int fd, const std::string &message)
 {
@@ -686,10 +704,8 @@ client::~client()
 }
 
 // JOIN #channelName
-void client::join(int fd, const std::string &message)
-{
-    if (!get_connected())
-    {
+void client::join(int fd, const std::string &message) {
+    if (!get_connected()) {
         dprintf(fd, RED "Error: you are not connected\n" RESET);
         return;
     }
@@ -699,13 +715,11 @@ void client::join(int fd, const std::string &message)
     std::string channels = count > 1 ? get_word(message, 1) : "";
     std::string keys = count > 2 ? get_word(message, 2) : "";
 
-    if (command != "JOIN")
-    {
+    if (command != "JOIN") {
         dprintf(fd, RED "Error: invalid command\n" RESET);
         return;
     }
-    if (channels.empty())
-    {
+    if (channels.empty()) {
         sendError(fd, "ERR_NEEDMOREPARAMS", "JOIN");
         return;
     }
@@ -713,98 +727,87 @@ void client::join(int fd, const std::string &message)
     std::vector<std::string> channelList = split(channels, ',');
     std::vector<std::string> keyList = split(keys, ',');
 
-    for (size_t i = 0; i < channelList.size(); ++i)
-    {
+    for (size_t i = 0; i < channelList.size(); ++i) {
         std::string channelName = channelList[i];
         std::string key = (i < keyList.size()) ? keyList[i] : "";
 
-        if (!isValidChannelName(channelName))
-        {
+        if (!isValidChannelName(channelName)) {
             sendError(fd, "ERR_NOSUCHCHANNEL", channelName);
             return;
         }
 
         Channel *channel = clientManager->getChannel(channelName);
 
-        if (!channel)
-        {
-            std::cout << GREEN "Channel not found. Creating new channel: " << channelName << RESET << std::endl;
+        if (!channel) {
+            // Create a new channel and assign the current client as the owner
             clientManager->addChannel(channelName);
             channel = clientManager->getChannel(channelName);
-            if (channel)
-            {
-                channel->addOperator(this);
-                std::cout << GREEN "Channel created and operator added: " << channelName << RESET << std::endl;
-            }
-            else
-            {
+            if (channel) {
+                channel->setOwner(this);
+                std::cout << GREEN "Channel created and owner added: " << channelName << RESET << std::endl;
+            } else {
                 std::cerr << RED "Failed to create channel: " << channelName << RESET << std::endl;
                 sendError(fd, "ERR_CHANNELCREATIONFAILED", channelName);
                 return;
             }
         }
 
-        if (channel->isMember(this))
-        {
+        if (channel->isMember(this)) {
             dprintf(fd, YELLOW "You are already in the channel %s\r\n" RESET, channelName.c_str());
             continue;
         }
 
-        if (channel->hasMode("i") && !channel->isInvited(nickname) && !channel->isOperator(this))
-        {
+        // Check invite-only mode
+        if (channel->hasMode("i") && !channel->isInvited(nickname) && !channel->isOperator(this) && !channel->isOwner(this)) {
             sendError(fd, "ERR_INVITEONLYCHAN", channelName);
             return;
         }
 
-        if (channel->isBanned(nickname))
-        {
+        // Check if user is banned
+        if (channel->isBanned(nickname)) {
             sendError(fd, "ERR_BANNEDFROMCHAN", channelName);
             continue;
         }
 
-        if (channel->hasMode("k"))
-        {
-            if (!channel->checkKey(key))
-            {
+        // Check key requirement
+        if (channel->hasMode("k")) {
+            if (!channel->checkKey(key)) {
                 sendError(fd, "ERR_BADCHANNELKEY", channelName);
                 return;
             }
         }
 
-        if (channel->hasMode("l"))
-        {
+        // Check user limit
+        if (channel->hasMode("l")) {
             int userLimit = channel->getUserLimit();
-            std::cout << userLimit;
-            std::cout << channel->getMemberCount();
-            if (channel->getMemberCount() - 1 == userLimit)
-            {
-                sendError(fd, RED "ERR_CHANNELISFULL" RESET, channelName);
+            if (channel->getMemberCount() == userLimit) {
+                sendError(fd, "ERR_CHANNELISFULL", channelName);
                 return;
             }
         }
 
+        // Add the client as a member to the channel
         channel->addMember(this);
         std::string joinMessage = CYAN ":" + get_nickname() + "!" + get_username() + "@" + get_hostname() + " JOIN " + channelName + "\r\n" RESET;
+
+        // Notify all channel members of the new join
         std::vector<client *> memberList = channel->getMembers();
-        for (std::vector<client *>::iterator it = memberList.begin(); it != memberList.end(); ++it)
-        {
-            client *member = *it; // Dereference the iterator to get the actual element
+        for (std::vector<client *>::iterator it = memberList.begin(); it != memberList.end(); ++it) {
+            client *member = *it;
             dprintf(member->get_fd(), "%s", joinMessage.c_str());
         }
 
+        // Show the topic to the joining client
         std::string currentTopic = channel->getTopic();
-        if (currentTopic.empty())
-        {
+        if (currentTopic.empty()) {
             dprintf(fd, MAGENTA ":%s 331 %s %s :No topic is set\r\n" RESET, server_hostname().c_str(), get_nickname().c_str(), channelName.c_str());
-        }
-        else
-        {
+        } else {
             dprintf(fd, MAGENTA ":%s 332 %s %s :%s\r\n" RESET, server_hostname().c_str(), get_nickname().c_str(), channelName.c_str(), currentTopic.c_str());
         }
 
+        // List the current members in the channel
         std::string nameReply = "= " + channelName + " :";
-        for (std::vector<client *>::iterator it = memberList.begin(); it != memberList.end(); ++it)
-        {
+        for (std::vector<client *>::iterator it = memberList.begin(); it != memberList.end(); ++it) {
             client *member = *it;
             nameReply += member->get_nickname() + " ";
         }
@@ -815,11 +818,10 @@ void client::join(int fd, const std::string &message)
     }
 }
 
+
 // KICK #channelName member_nick
-void client::kick(int fd, const std::string &message)
-{
-    if (!get_connected())
-    {
+void client::kick(int fd, const std::string &message) {
+    if (!get_connected()) {
         dprintf(fd, RED "Error: you are not connected\n" RESET);
         return;
     }
@@ -830,71 +832,74 @@ void client::kick(int fd, const std::string &message)
     std::string userToKick = count > 2 ? get_word(message, 2) : "";
     std::string kickMessage = count > 3 ? get_word(message, 3) : "";
 
-    if (command != "KICK")
-    {
+    if (command != "KICK") {
         dprintf(fd, RED "Error: invalid command\n" RESET);
         return;
     }
-    if (channelName.empty() || userToKick.empty())
-    {
+    if (channelName.empty() || userToKick.empty()) {
         sendError(fd, "ERR_NEEDMOREPARAMS", "KICK");
         return;
     }
 
-    if (!isValidChannelName(channelName))
-    {
+    if (!isValidChannelName(channelName)) {
         sendError(fd, "ERR_NOSUCHCHANNEL", channelName);
         return;
     }
 
     Channel *channel = clientManager->getChannel(channelName);
-    if (!channel)
-    {
+    if (!channel) {
         sendError(fd, "ERR_NOSUCHCHANNEL", channelName);
         return;
     }
 
-    if (!channel->isOperator(this))
-    {
+    // Check if the client is neither an operator nor the owner
+    if (!channel->isOperator(this) && !channel->isOwner(this)) {
         sendError(fd, "ERR_CHANOPRIVSNEEDED", channelName);
         return;
     }
 
     client *target = clientManager->getClient(userToKick);
-    if (!target)
-    {
+    if (!target) {
         sendError(fd, "ERR_NOSUCHNICK", userToKick);
         return;
     }
 
-    if (!channel->isMember(target))
-    {
+    if (!channel->isMember(target)) {
         sendError(fd, "ERR_USERNOTINCHANNEL", userToKick);
         return;
     }
-    if (!channel->isOperator(target))
-    {
+
+    // Owner has permission to kick anyone, including other operators
+    if (channel->isOwner(this)) {
         channel->removeMember(target);
     }
-    else
-    {
-        dprintf(fd, "%s", RED "Target is an operator\n" RESET);
+
+    // Regular operators cannot kick the owner or other operators
+    else if (channel->isOperator(this)) {
+        if (channel->isOwner(target)) {
+            dprintf(fd, RED "Error: you cannot kick the owner\n" RESET);
+            return;
+        } else if (channel->isOperator(target)) {
+            dprintf(fd, RED "Error: you cannot kick another operator\n" RESET);
+            return;
+        } else {
+            channel->removeMember(target);
+        }
+    } else {
+        dprintf(fd, RED "Error: insufficient privileges\n" RESET);
         return;
     }
+
     std::string kickMessageFormatted = kickMessage.empty() ? "" : " :" + kickMessage;
     std::string kickNotification = ":" + get_nickname() + " KICK " + channelName + " " + userToKick + kickMessageFormatted + "\r\n";
 
     // Notify all members of the channel
-    std::vector<client *> memberList = channel->getMembers();
-    for (std::vector<client *>::iterator it = memberList.begin(); it != memberList.end(); ++it)
-    {
-        client *member = *it; // Dereference the iterator to get the actual client*
-        dprintf(member->get_fd(), "%s", kickNotification.c_str());
-    }
+    channel->broadcast(kickNotification, fd);
 
     // Notify the client who was kicked
     dprintf(target->get_fd(), "%s", kickNotification.c_str());
 }
+
 
 // INVITE nick #channelName
 void client::invite(int fd, const std::string &message)
@@ -1022,20 +1027,13 @@ void client::topic(int fd, const std::string &message)
         channel->setTopic(topic);
         // Notify other users
         std::string topicMsg = GREEN ":" + get_nickname() + " TOPIC " + channelName + " :" + channel->getTopic() + "\r\n" RESET;
-        std::vector<client *> memberList = channel->getMembers();
-        for (std::vector<client *>::iterator it = memberList.begin(); it != memberList.end(); ++it)
-        {
-            client *member = *it; // Dereference the iterator to get the actual client*
-            dprintf(member->get_fd(), "%s", topicMsg.c_str());
-        }
+       channel->broadcast(topicMsg, fd);
     }
 }
 
 // MODE #channelName +/-mode nickname
-void client::mode(int fd, const std::string &message)
-{
-    if (!get_connected())
-    {
+void client::mode(int fd, const std::string &message) {
+    if (!get_connected()) {
         dprintf(fd, "Error: you are not connected\n");
         return;
     }
@@ -1046,34 +1044,29 @@ void client::mode(int fd, const std::string &message)
     std::string modes = count > 2 ? get_word(message, 2) : "";
     std::string modeParam = count > 3 ? get_word(message, 3) : "";
 
-    if (command != "MODE")
-    {
+    if (command != "MODE") {
         dprintf(fd, "Error: invalid command\n");
         return;
     }
 
-    if (channelName.empty())
-    {
+    if (channelName.empty()) {
         sendError(fd, "ERR_NEEDMOREPARAMS", "MODE");
         return;
     }
 
     Channel *channel = clientManager->getChannel(channelName);
 
-    if (!channel)
-    {
+    if (!channel) {
         sendError(fd, "ERR_NOSUCHCHANNEL", channelName);
         return;
     }
 
-    if (!channel->isMember(this))
-    {
+    if (!channel->isMember(this)) {
         sendError(fd, "ERR_NOTONCHANNEL", channelName);
         return;
     }
 
-    if (!channel->isOperator(this))
-    {
+    if (!channel->isOperator(this)) {
         sendError(fd, "ERR_CHANOPRIVSNEEDED", channelName);
         return;
     }
@@ -1082,136 +1075,130 @@ void client::mode(int fd, const std::string &message)
     std::string appliedModes;
     std::string appliedParams;
 
-    for (size_t i = 0; i < modes.size(); ++i)
-    {
+    for (size_t i = 0; i < modes.size(); ++i) {
         char mode = modes[i];
 
-        if (mode == '+')
-        {
+        if (mode == '+') {
             addMode = true;
             continue;
-        }
-        else if (mode == '-')
-        {
+        } else if (mode == '-') {
             addMode = false;
             continue;
         }
 
-        switch (mode)
-        {
-        case 'i':
-            if (addMode)
-            {
-                if (!channel->hasMode("i"))
-                {
-                    channel->addMode("i");
-                    appliedModes += "+i";
+        switch (mode) {
+            case 'i':
+                if (addMode) {
+                    if (!channel->hasMode("i")) {
+                        channel->addMode("i");
+                        appliedModes += "+i";
+                    }
+                } else {
+                    if (channel->hasMode("i")) {
+                        channel->removeMode("i");
+                        appliedModes += "-i";
+                    }
                 }
-            }
-            else
-            {
-                if (channel->hasMode("i"))
-                {
-                    channel->removeMode("i");
-                    appliedModes += "-i";
-                }
-            }
-            break;
-        case 't':
-            if (addMode)
-            {
-                if (!channel->hasMode("t"))
-                {
-                    channel->addMode("t");
-                    appliedModes += "+t";
-                }
-            }
-            else
-            {
-                if (channel->hasMode("t"))
-                {
-                    channel->removeMode("t");
-                    appliedModes += "-t";
-                }
-            }
-            break;
+                break;
 
-        case 'k':
-            if (addMode)
-            {
-                if (!channel->hasMode("k"))
-                { // Only set key if not already set
-                    channel->setKey(modeParam);
-                    channel->addMode("k");
+            case 't':
+                if (addMode) {
+                    if (!channel->hasMode("t")) {
+                        channel->addMode("t");
+                        appliedModes += "+t";
+                    }
+                } else {
+                    if (channel->hasMode("t")) {
+                        channel->removeMode("t");
+                        appliedModes += "-t";
+                    }
+                }
+                break;
+
+            case 'k':
+                if (addMode) {
+                    if (modeParam.empty()) {
+                        sendError(fd, "ERR_NEEDMOREPARAMS", "MODE +k");
+                        return;
+                    }
+                    channel->setKey(modeParam);  // Always update the key
+                    if (!channel->hasMode("k")) {
+                        channel->addMode("k");
+                    }
                     appliedModes += "+k";
                     appliedParams += " " + modeParam;
+                } else {
+                    if (channel->hasMode("k")) {
+                        channel->setKey("");  // Remove the key when mode is removed
+                        channel->removeMode("k");
+                        appliedModes += "-k";
+                    }
                 }
-            }
-            else
-            {
-                if (channel->hasMode("k"))
-                { // Only remove key if it exists
-                    channel->setKey("");
-                    channel->removeMode("k");
-                    appliedModes += "-k";
-                }
-            }
-            break;
+                break;
 
-        case 'o':
-            if (addMode)
-            {
-                client *newOp = channel->getMember(modeParam);
-                channel->addOperator(newOp);
-                appliedModes += "+o";
-                appliedParams += " " + modeParam;
-            }
-            else
-            {
-                channel->removeOperator(this);
-                appliedModes += "-o";
-                appliedParams += " " + modeParam;
-            }
-            break;
-
-        case 'l':
-            if (addMode)
-            {
-                if (!channel->hasMode("l"))
-                {
-                    channel->setUserLimit(std::atoi(modeParam.c_str()));
-                    channel->addMode("l");
-                    appliedModes += "+l";
-                    appliedParams += " " + modeParam;
+            case 'o':
+                if (addMode) {
+                    if (modeParam.empty()) {
+                        sendError(fd, "ERR_NEEDMOREPARAMS", "MODE +o");
+                        return;
+                    }
+                    client *newOp = channel->getMember(modeParam);
+                    if (newOp) {
+                        channel->addOperator(newOp);
+                        appliedModes += "+o";
+                        appliedParams += " " + modeParam;
+                    } else {
+                        sendError(fd, "ERR_USERNOTINCHANNEL", modeParam);
+                    }
+                } else {
+                    if (modeParam.empty()) {
+                        sendError(fd, "ERR_NEEDMOREPARAMS", "MODE -o");
+                        return;
+                    }
+                    client *removeOp = channel->getMember(modeParam);
+                    if (removeOp) {
+                        channel->removeOperator(removeOp);
+                        appliedModes += "-o";
+                        appliedParams += " " + modeParam;
+                    } else {
+                        sendError(fd, "ERR_USERNOTINCHANNEL", modeParam);
+                    }
                 }
-            }
-            else
-            {
-                if (channel->hasMode("l"))
-                {
-                    channel->setUserLimit(-1);
-                    channel->removeMode("l");
-                    appliedModes += "-l";
-                }
-            }
-            break;
+                break;
 
-        default:
-            sendError(fd, "ERR_UNKNOWNMODE", std::string(1, mode));
-            return;
+            case 'l':
+                if (addMode) {
+                    if (modeParam.empty()) {
+                        sendError(fd, "ERR_NEEDMOREPARAMS", "MODE +l");
+                        return;
+                    }
+                    if (!channel->hasMode("l")) {
+                        channel->setUserLimit(std::atoi(modeParam.c_str()));
+                        channel->addMode("l");
+                        appliedModes += "+l";
+                        appliedParams += " " + modeParam;
+                    }
+                } else {
+                    if (channel->hasMode("l")) {
+                        channel->setUserLimit(-1);
+                        channel->removeMode("l");
+                        appliedModes += "-l";
+                    }
+                }
+                break;
+
+            default:
+                sendError(fd, "ERR_UNKNOWNMODE", std::string(1, mode));
+                return;
         }
     }
 
-    if (!appliedModes.empty())
-    {
+    if (!appliedModes.empty()) {
         std::string modeMessage = ":" + get_nickname() + " MODE " + channelName + " " + appliedModes + appliedParams + "\r\n";
-        std::vector<client *> memberList = channel->getMembers();
-        for (size_t i = 0; i < memberList.size(); ++i)
-        {
-            dprintf(memberList[i]->get_fd(), "%s", modeMessage.c_str());
-        }
+        channel->broadcast(modeMessage, fd);
     }
 }
+
 
 // PART #channelName msg
 void client::part(int fd, const std::string &message)

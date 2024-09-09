@@ -1,6 +1,7 @@
 #ifndef CHANNEL_HPP
 #define CHANNEL_HPP
 
+#include <list>
 #include <string>
 #include <set>
 #include <map>
@@ -15,16 +16,22 @@ private:
     std::string name;
     std::string topic;
     std::string key;
+    client *owner;
     std::map<int, client *> members;
     std::set<std::string> modes;
     std::set<std::string> bannedUsers;
     std::set<std::string> invitedUsers;
-    std::set<client *> operators; // Use client* instead of strings
+    std::set<client *> operators;
+    std::set<client*> removedOperators; 
+    std::list<client*> memberOrder;
     int limit;
 
 public:
     Channel(const std::string &name);
     ~Channel();
+
+    void setOwner(client *newOwner);
+    bool isOwner(client *member) const;
 
     void addMember(client *client);
     void removeMember(client *client);
@@ -60,14 +67,19 @@ public:
     int getMemberCount() const;
     client *getMember(const std::string &nickname) const;
 
-    void kickMember(client *client, const std::string &reason);
-    void changeTopic(client *client, const std::string &newTopic);
-    void changeMode(client *client, const std::string &mode, bool enable);
+    /*
+        `void kickMember(client *client, const std::string &reason);
+        void changeTopic(client *client, const std::string &newTopic);
+        void changeMode(client *client, const std::string &mode, bool enable);
+    */
+
     void partChannel(client *client, const std::string &reason);
-
     void sendMessage(client *sender, const std::string &message);
+    void broadcast(const std::string &message, int senderFd = -1);
 
-    void logMessage(const std::string &message);
+    void handleOperatorQuit(client *quittingOperator);
+    void appointNewOperator(int excludeFd = -1);
+    std::vector<client*> getEligibleMembers() const;
 };
 
 #endif

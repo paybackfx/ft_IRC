@@ -44,7 +44,7 @@ void ClientManager::addClient(int clientFd, client* newClient) {
 
 void ClientManager::removeClient(int clientFd) {
         
-         delete connectedClients[clientFd]; 
+        delete connectedClients[clientFd]; 
         connectedClients.erase(clientFd);
         epoll_ctl(fd_epoll, EPOLL_CTL_DEL, clientFd, NULL);
         close(clientFd);
@@ -141,14 +141,14 @@ void ClientManager::removeChannel(const std::string& name) {
 
 Channel* ClientManager::getChannel(const std::string& channelName) {
     std::string lowerChannelName = toLowerCase(channelName);
-    std::cout << "getChannel called with: " << lowerChannelName << std::endl;
-    std::cout << "Channel map size: " << channels.size() << std::endl;
+    //std::cout << "getChannel called with: " << lowerChannelName << std::endl;
+    //std::cout << "Channel map size: " << channels.size() << std::endl;
 
     if (channels.find(lowerChannelName) != channels.end()) {
-        std::cout << "Channel found: " << lowerChannelName << std::endl;
+        //std::cout << "Channel found: " << lowerChannelName << std::endl;
         return channels[lowerChannelName];
     } else {
-        std::cout << "Channel not found: " << lowerChannelName << std::endl;
+        //std::cout << "Channel not found: " << lowerChannelName << std::endl;
         return NULL;
     }
 }
@@ -159,15 +159,44 @@ bool ClientManager::isChannel(const std::string& name) {
 }
 
 void ClientManager::free_all() {
-    for (std::map<int, client*>::iterator it = connectedClients.begin(); it != connectedClients.end(); it++) {
-        delete it->second;
-    }
-    connectedClients.clear();
 
     for (std::map<std::string, Channel*>::iterator it = channels.begin(); it != channels.end(); it++) {
         delete it->second;
     }
     channels.clear();
+
+    for (std::map<int, client*>::iterator it = connectedClients.begin(); it != connectedClients.end(); it++) {
+        delete it->second;
+    }
+    connectedClients.clear();
+
     
-    delete instance; // Supprimer l'instance de ClientManager
+    delete instance;
+}
+
+void ClientManager::removeClientFromChannels(int clientFd) {
+
+     client *clientPtr = connectedClients[clientFd];
+
+    // Iterate over all channels managed by ClientManager
+    for (std::map<std::string, Channel*>::iterator it = channels.begin(); it != channels.end(); it++) {
+        Channel *channel = it->second;
+
+        // Check if the client is a member of the channel
+        if (channel->isMember(clientPtr)) {
+
+            // Broadcast message that the client has left the channel
+            std::string quitMessage = clientPtr->get_nickname() + " has quit " + channel->getName() + "\n";
+            channel->broadcast(quitMessage, clientFd);
+
+            // Check if the client is an operator
+            if (channel->isOperator(clientPtr)) {
+                // appoint a new operator, update channel mode.
+                channel->handleOperatorQuit(clientPtr);
+            }
+
+            // Remove the client from the channel
+            channel->removeMember(clientPtr);
+        }
+    }
 }

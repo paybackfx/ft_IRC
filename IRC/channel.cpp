@@ -10,14 +10,26 @@ Channel::Channel(const std::string &name) : name(name), limit(-1) {}
 
 Channel::~Channel() {}
 
+
+ void Channel::setOwner(client *newOwner) {
+        owner = newOwner;
+        addOperator(owner); 
+ }
+
+bool Channel::isOwner(client *member) const {
+        return owner == member;
+}
+
 void Channel::addMember(client *client)
 {
     members[client->get_fd()] = client;
+    memberOrder.push_back(client);
 }
 
 void Channel::removeMember(client *client)
 {
     members.erase(client->get_fd());
+    memberOrder.remove(client);
 }
 
 bool Channel::isMember(client *client) const
@@ -91,9 +103,8 @@ bool Channel::checkKey(const std::string &key) const
     return this->key == key;
 }
 
-void Channel::addOperator(client *client)
-{
-    operators.insert(client);
+ void Channel::addOperator(client *member) {
+        operators.insert(member);
 }
 
 void Channel::removeOperator(client *client)
@@ -156,63 +167,104 @@ int Channel::getMemberCount() const
     return members.size();
 }
 
-void Channel::kickMember(client *client, const std::string &reason)
+
+void Channel::partChannel(client *sender, const std::string &reason)
 {
-    if (isMember(client))
-    {
-        removeMember(client);
-        std::string kickMessage = ":" + client->get_nickname() + " KICK " + name + " :" + reason + "\r\n";
-        logMessage(kickMessage);
-    }
-}
-
-void Channel::changeTopic(client *client, const std::string &newTopic)
-{
-    setTopic(newTopic);
-
-    // Notify other members about the topic change
-    std::string topicMessage = ":" + client->get_nickname() + " TOPIC " + getName() + " :" + newTopic + "\r\n";
-    logMessage(topicMessage);
-}
-
-void Channel::logMessage(const std::string &message)
-{
-    std::vector<client *> memberList = getMembers();
-    for (size_t i = 0; i < memberList.size(); ++i)
-    {
-        dprintf(memberList[i]->get_fd(), "%s", message.c_str());
-    }
-}
-
-void Channel::partChannel(client *client, const std::string &reason)
-{
-    if (!isMember(client))
-    {
-        return;
-    }
-
-    bool wasOperator = isOperator(client);
-
-    removeMember(client);
-    std::string partMessage = ":" + client->get_nickname() + " PART " + name + " :" + reason + "\r\n";
-    logMessage(partMessage);
-}
-
-void Channel::sendMessage(client *sender, const std::string &message)
-{
-
     if (!isMember(sender))
     {
         return;
     }
 
-    // Format the message according to RFC 1459: ":<nickname> PRIVMSG <channel> :<message>"
+    bool wasOperator = isOperator(sender);
+
+    removeMember(sender);
+    std::string partMessage = ":" + sender->get_nickname() + " PART " + name + " :" + reason + "\r\n";
+    broadcast(partMessage, sender->get_fd());
+}
+
+void Channel::sendMessage(client *sender, const std::string &message) {
+    if (!isMember(sender)) {
+        return;
+    }
+
+    // Format the message according to RFC 1459
     std::string formattedMessage = ":" + sender->get_nickname() + " PRIVMSG " + name + " :" + message + "\r\n";
 
+    // Use broadcast to send the message to all members, excluding the sender
+    broadcast(formattedMessage, sender->get_fd());
+}
+
+void Channel::broadcast(const std::string &formattedMessage, int excludeFd) {
+ 
     std::map<int, client *>::iterator it;
-    for (it = members.begin(); it != members.end(); ++it)
-    {
+    for (it = members.begin(); it != members.end(); ++it) {
         client *member = it->second;
-        dprintf(member->get_fd(), "%s", formattedMessage.c_str());
+        
+        // Skip the sender if excludeFd is provided
+        if (member->get_fd() != excludeFd) {
+            dprintf(member->get_fd(), "%s", formattedMessage.c_str());
+        }
+    }
+}
+
+
+std::vector<client*> Channel::getEligibleMembers() const {
+    std::vector<client*> eligibleMembers;
+
+    for (std::list<client*>::const_iterator it = memberOrder.begin(); it != memberOrder.end(); ++it) {
+        client *member = *it;
+        // we can add sophistical criteria for eligibility here
+        if (!isOperator(member) && removedOperators.find(member) == removedOperators.end()) {
+            eligibleMembers.push_back(member);
+        }
+    }
+    return eligibleMembers;
+}
+
+void Channel::appointNewOperator(int excludeFd) {
+    // Prevent appointing the same operator repeatedly in quick succession
+    if (!operators.empty()) {
+        return; // If there's already an operator, don't appoint again
+    }
+
+    std::vector<client *> eligibleMembers = getEligibleMembers();
+    if (eligibleMembers.empty()) {
+        // No eligible members to appoint as a new operator
+        return;
+    }
+
+    // Choose the first eligible member as the new operator
+    client *newOperator = eligibleMembers[0];
+    addOperator(newOperator);
+
+    // Notify members about the new operator appointment
+    std::string message = newOperator->get_nickname() + " has been appointed as the new operator.\n";
+    broadcast(message, excludeFd);
+}
+
+void Channel::handleOperatorQuit(client *quittingOperator) {
+
+    // Ensure we only handle the operator quitting once
+    if (!isOperator(quittingOperator)) {
+        return;
+    }
+
+    // Remove the quitting operator
+    removeOperator(quittingOperator);
+    // Mark them as excluded from future appointments
+    removedOperators.insert(quittingOperator);
+
+    // Notify all members about the operator's departure
+    std::string quitMessage = quittingOperator->get_nickname() + " was an operator in " + getName() + "\n";
+    broadcast(quitMessage, quittingOperator->get_fd());
+
+    // Check if there are no operators left in the channel
+    if (operators.empty()) {
+        // Try to appoint a new operator
+        appointNewOperator(quittingOperator->get_fd()); 
+    } else {
+        client *nextOperator = *operators.begin();
+        std::string newOpMessage = nextOperator->get_nickname() + " has been appointed as the new operator.\n";
+        broadcast(newOpMessage, quittingOperator->get_fd());
     }
 }
