@@ -30,6 +30,16 @@
 #include <cstdio>
 #include "clientM.hpp"
 
+// ANSI color codes
+#define RESET "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
+#define MAGENTA "\033[35m"
+#define CYAN "\033[36m"
+#define WHITE "\033[37m"
+
 class server;
 // class ClientManager;
 class client
@@ -55,10 +65,10 @@ private:
     std::string servername;
     std::set<std::string> chanels;
     std::set<std::string> modes; // +i invite only  +o opertator  +t change topic +l limit users
+    client();
 
 public:
     bool count;
-    client();
     client(int fd, unsigned int port, const std::string &get_password);
     client(const client &src);
     client &operator=(const client &src);
@@ -118,6 +128,8 @@ public:
     void topic(int fd, const std::string &message);
     void mode(int fd, const std::string &message);
     void part(int fd, const std::string &message);
+    void bot(int fd, const std::string &message);
+
 };
 
 //-----------------utils-----------------//
@@ -129,4 +141,5 @@ std::vector<std::string> split(const std::string &str, char delimiter);
 void sendError(int fd, const std::string &errorCode, const std::string &channelName);
 std::string trim(const std::string &str);
 std::string toLowerCase(const std::string &str);
+void printCenteredBox(int fd, const std::vector<std::string> &lines);
 #endif

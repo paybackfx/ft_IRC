@@ -155,3 +155,50 @@ std::string toLowerCase(const std::string &str)
     }
     return lowerStr;
 }
+
+std::string stripAnsiCodes(const std::string& text) {
+    std::string result;
+    bool inEscapeSequence = false;
+    for (std::string::const_iterator it = text.begin(); it != text.end(); ++it) {
+        char ch = *it;
+        if (ch == '\033') {
+            inEscapeSequence = true;
+        } else if (ch == 'm' && inEscapeSequence) {
+            inEscapeSequence = false;
+        } else if (!inEscapeSequence) {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+void printCenteredBox(int fd, const std::vector<std::string>& lines) {
+    // Déterminer la largeur maximale des lignes sans les séquences d'échappement
+    size_t maxLength = 0;
+    for (std::vector<std::string>::const_iterator it = lines.begin(); it != lines.end(); ++it) {
+        std::string strippedLine = stripAnsiCodes(*it);
+        if (strippedLine.size() > maxLength) {
+            maxLength = strippedLine.size();
+        }
+    }
+    
+    // La largeur totale de la boîte est la longueur maximale + 4 pour les bords et les espaces
+    size_t boxWidth = maxLength + 4;
+
+    // Afficher le haut de la boîte
+    dprintf(fd, "+%s+\n", std::string(boxWidth - 2, '-').c_str());
+
+    // Afficher les lignes du texte
+    for (std::vector<std::string>::const_iterator it = lines.begin(); it != lines.end(); ++it) {
+        std::string strippedLine = stripAnsiCodes(*it);
+        size_t padding = (boxWidth - 2 - strippedLine.size()) / 2;
+        dprintf(fd, "|%*s%s%*s|\n",
+                static_cast<int>(padding), "",
+                it->c_str(), // Affiche le texte avec les séquences de couleur
+                static_cast<int>(boxWidth - 2 - strippedLine.size() - padding), "");
+    }
+    
+    // Afficher le bas de la boîte
+    dprintf(fd, "+%s+\n", std::string(boxWidth - 2, '-').c_str());
+}
+

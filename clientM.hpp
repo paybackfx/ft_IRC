@@ -51,6 +51,8 @@ public:
     Channel* getChannel(const std::string& channelName);
     bool isChannel(const std::string& name);
     void removeClientFromChannels(int clientFd);
+    bool isInChannels(int clientFd);
+    bool isOperatorInChannel(int fd);
 };
 
 #endif
