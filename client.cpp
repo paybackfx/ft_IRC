@@ -59,7 +59,7 @@ client::client(int fd, unsigned int port, const std::string &password) : clientM
     std::stringstream fd1;
     fd1 << fd;
     this->nickname = "nick_" + fd1.str();
-    this->count = false;
+    this->is_registered = false;
     command_map["CONNECT"] = &client::connect;
     command_map["NICK"] = &client::nick;
     command_map["USER"] = &client::user;
@@ -358,43 +358,37 @@ void client::nick(int fd, const std::string &message)
         }
         else
         {
-            if (count)
-                dprintf(fd, "use this format <currentNick> NICK <newNICK>\n");
-            else
-            {
-                count = true;
-                set_nickname(newNick);
-                dprintf(fd, "Your nickname is: %s\n", newNick.c_str());
-            }
-        }
-    }
-    else if (args.size() == 3 && (args[1] == "NICK"))
-    {
-        std::string newNick = args[2];
-        if (!isValideNickname(fd, newNick))
-            return;
-
-        if (currentNick.empty())
-        {
-            dprintf(fd, "ERR_NONICKNAMEGIVEN\n");
-        }
-        else if (args[0] != currentNick)
-        {
-            dprintf(fd, "ERR_NONMATCHNICKNAME\n");
-        }
-        else if (clientManager->nicknameUsed(newNick))
-        {
-            dprintf(fd, "ERR_NICKNAMEINUSE\n");
-        }
-        else
-        {
             set_nickname(newNick);
-            dprintf(fd, "Your nickname has been changed to: %s\n", newNick.c_str());
+            dprintf(fd, "Your nickname is: %s\n", newNick.c_str());
         }
     }
+    // else if (args.size() == 3 && (args[1] == "NICK"))
+    // {
+    //     std::string newNick = args[2];
+    //     if (!isValideNickname(fd, newNick))
+    //         return;
+
+    //     if (currentNick.empty())
+    //     {
+    //         dprintf(fd, "ERR_NONICKNAMEGIVEN\n");
+    //     }
+    //     else if (args[0] != currentNick)
+    //     {
+    //         dprintf(fd, "ERR_NONMATCHNICKNAME\n");
+    //     }
+    //     else if (clientManager->nicknameUsed(newNick))
+    //     {
+    //         dprintf(fd, "ERR_NICKNAMEINUSE\n");
+    //     }
+    //     else
+    //     {
+    //         set_nickname(newNick);
+    //         dprintf(fd, "Your nickname has been changed to: %s\n", newNick.c_str());
+    //     }
+    // }
     else if (args.size() == 2 && args[1] == "NICK")
     {
-        dprintf(fd, "ERR_NONICKNAMEGIVEN\n");
+        dprintf(fd, "Error: invalid command\n");
     }
     else
     {
@@ -824,7 +818,7 @@ void client::join(int fd, const std::string &message)
             client *member = *it;
             nameReply += member->get_nickname() + " ";
         }
-        nameReply += "\r\n";
+        //nameReply += "\r\n";
 
         dprintf(fd, GREEN ":%s 353 %s  %s\r\n" RESET, server_hostname().c_str(), get_nickname().c_str(), nameReply.c_str());
         dprintf(fd, RED ":%s 366 %s %s :End of /NAMES list\r\n" RESET, server_hostname().c_str(), get_nickname().c_str(), channelName.c_str());
@@ -1201,17 +1195,32 @@ void client::mode(int fd, const std::string &message)
                     sendError(fd, "ERR_NEEDMOREPARAMS", "MODE +o");
                     return;
                 }
+
                 client *newOp = channel->getMember(modeParam);
-                if (newOp)
-                {
-                    channel->addOperator(newOp);
-                    appliedModes += "+o";
-                    appliedParams += " " + modeParam;
-                }
-                else
+
+                if (!newOp)
                 {
                     sendError(fd, "ERR_USERNOTINCHANNEL", modeParam);
+                    return;
                 }
+
+                // Check if the target is the calling operator (this)
+                if (newOp == this)
+                {
+                    sendError(fd, "ERR_CANNOTSETOPYOURSELF", modeParam); // Custom error for trying to make yourself an op
+                    return;
+                }
+
+                // Check if the user is already an operator
+                if (channel->isOperator(newOp))
+                {
+                    sendError(fd, "ERR_ALREADYANOPERATOR", modeParam); // Custom error for already being an operator
+                    return;
+                }
+
+                channel->addOperator(newOp);
+                appliedModes += "+o";
+                appliedParams += " " + modeParam;
             }
             else
             {
@@ -1220,19 +1229,35 @@ void client::mode(int fd, const std::string &message)
                     sendError(fd, "ERR_NEEDMOREPARAMS", "MODE -o");
                     return;
                 }
+
                 client *removeOp = channel->getMember(modeParam);
-                if (removeOp)
-                {
-                    channel->removeOperator(removeOp);
-                    appliedModes += "-o";
-                    appliedParams += " " + modeParam;
-                }
-                else
+
+                if (!removeOp)
                 {
                     sendError(fd, "ERR_USERNOTINCHANNEL", modeParam);
+                    return;
                 }
+
+                // Check if the target is the calling operator (this)
+                if (removeOp == this)
+                {
+                    sendError(fd, "ERR_CANNOTREMOVEOPYOURSELF", modeParam); // Custom error for trying to remove yourself as an op
+                    return;
+                }
+
+                // Check if the user is not an operator
+                if (!channel->isOperator(removeOp))
+                {
+                    sendError(fd, "ERR_NOTANOPERATOR", modeParam); // Custom error for not being an operator
+                    return;
+                }
+
+                channel->removeOperator(removeOp);
+                appliedModes += "-o";
+                appliedParams += " " + modeParam;
             }
             break;
+
 
         case 'l':
             if (addMode)

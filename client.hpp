@@ -68,7 +68,6 @@ private:
     client();
 
 public:
-    bool count;
     client(int fd, unsigned int port, const std::string &get_password);
     client(const client &src);
     client &operator=(const client &src);

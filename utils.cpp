@@ -98,46 +98,71 @@ std::vector<std::string> split(const std::string &str, char delimiter)
     return tokens;
 }
 
+#include <string>
+#include <cstdio> // For dprintf
+
+// Define ANSI color codes
+#define RED "\033[31m"
+#define RESET "\033[0m"
+
 void sendError(int fd, const std::string &errorCode, const std::string &channelName)
 {
     std::string errorMessage;
 
     if (errorCode == "ERR_NOSUCHCHANNEL")
     {
-        errorMessage = "403 " + channelName + " :No such channel\r\n";
+        errorMessage = "403 " + channelName + RED " :No such channel\r\n" RESET;
     }
     else if (errorCode == "ERR_INVITEONLYCHAN")
     {
-        errorMessage = "473 " + channelName + " :Cannot join channel (invite only)\r\n";
+        errorMessage = "473 " + channelName + RED " :Cannot join channel (invite only)\r\n" RESET;
     }
     else if (errorCode == "ERR_BANNEDFROMCHAN")
     {
-        errorMessage = "474 " + channelName + " :Cannot join channel (banned)\r\n";
+        errorMessage = "474 " + channelName + RED " :Cannot join channel (banned)\r\n" RESET;
     }
     else if (errorCode == "ERR_BADCHANNELKEY")
     {
-        errorMessage = "475 " + channelName + " :Cannot join channel (bad key)\r\n";
+        errorMessage = "475 " + channelName + RED " :Cannot join channel (bad key)\r\n" RESET;
     }
     else if (errorCode == "ERR_NEEDMOREPARAMS")
     {
-        errorMessage = "461 " + channelName + " :Not enough parameters\r\n";
+        errorMessage = "461 " + channelName + RED " :Not enough parameters\r\n" RESET;
     }
     else if (errorCode == "ERR_CHANOPRIVSNEEDED")
     {
-        errorMessage = "482 " + channelName + " :You're not channel operator\r\n";
+        errorMessage = "482 " + channelName + RED " :You're not channel operator\r\n" RESET;
     }
     else if (errorCode == "ERR_USERNOTINCHANNEL")
     {
-        errorMessage = "441 " + channelName + " :They aren't on that channel\r\n";
+        errorMessage = "441 " + channelName + RED " :They aren't on that channel\r\n" RESET;
     }
     else if (errorCode == "ERR_CHANNELISFULL")
     {
-        errorMessage = "471" + channelName + " : the channel is full\r\n";
+        errorMessage = "471 " + channelName + RED " :The channel is full\r\n" RESET;
+    }
+    else if (errorCode == "ERR_CANNOTSETOPYOURSELF")
+    {
+        errorMessage = "485 " + channelName + RED " :You cannot set yourself as an operator\r\n" RESET;
+    }
+    else if (errorCode == "ERR_CANNOTREMOVEOPYOURSELF")
+    {
+        errorMessage = "486 " + channelName + RED " :You cannot remove yourself as an operator\r\n" RESET;
+    }
+    else if (errorCode == "ERR_ALREADYANOPERATOR")
+    {
+        errorMessage = "487 " + channelName + RED " :User is already an operator\r\n" RESET;
+    }
+    else if (errorCode == "ERR_NOTANOPERATOR")
+    {
+        errorMessage = "488 " + channelName + RED " :User is not an operator\r\n" RESET;
     }
 
     // Send the error message to the client using dprintf
     dprintf(fd, "%s", errorMessage.c_str());
 }
+
+
 
 std::string trim(const std::string &str)
 {

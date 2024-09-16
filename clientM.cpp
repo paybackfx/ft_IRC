@@ -43,7 +43,7 @@ void ClientManager::addClient(int clientFd, client *newClient)
 {
     std::vector<std::string> lines;
     lines.push_back(GREEN"Welcome to the IRC server"RESET);
-    lines.push_back(GREEN"Please enter your nickname"RESET);
+    // lines.push_back(GREEN"Please enter your nickname"RESET);
     lines.push_back(GREEN"use BOT to get the list of commands"RESET);
     
     printCenteredBox(clientFd, lines);

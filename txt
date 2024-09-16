@@ -1,0 +1,214 @@
+// /* ************************************************************************** */
+// /*                                                                            */
+// /*                                                        :::      ::::::::   */
+// /*   server.cpp                                         :+:      :+:    :+:   */
+// /*                                                    +:+ +:+         +:+     */
+// /*   By: anas <anas@student.42.fr>                  +#+  +:+       +#+        */
+// /*                                                +#+#+#+#+#+   +#+           */
+// /*   Created: 2024/05/15 10:39:40 by nbaghoug          #+#    #+#             */
+// /*   Updated: 2024/06/18 01:07:14 by anas             ###   ########.fr       */
+// /*                                                                            */
+// /* ************************************************************************** */
+
+// #include "server.hpp"
+// #include <limits>
+
+
+//     int server::signal_has_recieve = false;
+//         server::server() 
+//         {
+//             this->port = 7777;
+//             clientManager = ClientManager::getInstance();
+//             this->password = "default_value";
+//             this->server_socket = -1;
+//         }
+        
+//         server::server(const std::string& port,const std::string& password)
+//         {
+//             clientManager = ClientManager::getInstance();
+//             std::stringstream ss(port);
+//             ss >> this->port;
+//             std::cout << this->port << std::endl;
+//             this->password = password;
+//         }
+
+//         server::~server()
+//         {
+            
+//         }
+
+//         server::server(server& server): port(server.port), password(server.password)
+//         {
+
+//         }
+
+//         void server::sig_handler(int signum)
+//         {
+//             signal_has_recieve = true;
+//             std::cout << "signal has recieve " << signum << std::endl;
+//         }
+
+
+//         server& server::operator=(server& server)
+//         {
+//             if(this != &server)
+//             {
+//                 this->port = server.port;
+//                 this->password = server.password;
+//             }
+//             return *this;
+//         }
+
+//         void    server::create_socket()
+//         {
+//             this->server_socket = socket(AF_INET,SOCK_STREAM,0);
+//            int opt = 1;
+//             if (setsockopt(this->server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) 
+//             {
+//                 std::cerr << "Failed to set SO_REUSEADDR\n";
+//                 //throw "fcntl failed !";
+//                 exit(1);
+
+//             }
+    
+//             if(fcntl(this->server_socket , F_SETFL, O_NONBLOCK) == -1)
+//                 throw "fcntl failed !";
+         
+
+//         }
+
+
+//         void    server::bind_socket()
+//         {
+//             sockaddr_in serverAdd;
+//             serverAdd.sin_family = AF_INET;
+//             serverAdd.sin_port = htons(this->port);
+//             serverAdd.sin_addr.s_addr = INADDR_ANY;
+//             bind(this->server_socket,(struct sockaddr*)&serverAdd,sizeof(serverAdd));
+//         }
+        
+//         void    server::create_server()
+//         {
+//             struct epoll_event ev;
+//             struct epoll_event evlist[100];
+//             create_socket();
+//             int nb;
+//             bind_socket();
+//             listen(this->server_socket, 100);
+            
+//             ev.events =  EPOLLIN;
+//             ev.data.fd = this->server_socket;
+//             fd_epoll = epoll_create1(0);
+
+//             if(fd_epoll < 0)
+//             {
+//                 std::cerr <<  "couldn't create an instance of epoll" << std::endl;
+//             }
+//             epoll_ctl(fd_epoll, EPOLL_CTL_ADD, this->server_socket, &ev);
+//            while (1) {
+//                     nb = epoll_wait(fd_epoll, evlist, 100, -1);
+//                     if (nb == -1) {
+//                         std::cerr << "epoll wait error" << std::endl;
+//                         exit(1);
+//                     }
+
+//                     for (int i = 0; i < nb; ++i) {
+//                         if (evlist[i].events & (EPOLLERR | EPOLLHUP)) {
+//                             std::cerr << "Error or hang-up detected on socket " << evlist[i].data.fd << std::endl;
+//                             close(evlist[i].data.fd);
+//                             continue;
+//                         }
+
+//                         if (this->server_socket == evlist[i].data.fd ) {
+//                             std::cout << "New connection detected on server socket." << std::endl;
+//                             add_connection();
+//                         } else if (evlist[i].events & EPOLLIN) {
+//                             handle_request(evlist[i].data.fd);
+//                         }
+//                     }
+//                     nb = 0;
+//                 }
+//             this->clientManager->free_all();
+//             close(this->server_socket);
+//             dprintf(1,"SOCKET CLOSED\n");
+//         }
+
+//         void server::add_connection()
+//         {
+//             struct sockaddr_in addr;
+//             struct epoll_event ev;
+//             socklen_t  addr_len = sizeof(addr);
+//             int client_socket;
+//             client_socket = accept(this->server_socket, (struct sockaddr *)&addr,
+//                                     &addr_len);
+//             if (client_socket == -1)
+//             {
+//                 std::cout << "problem hna\n";
+//             }
+//             if(fcntl(client_socket , F_SETFL, O_NONBLOCK) == -1)
+//                 throw "fcntl failed !";
+//             if(client_socket != -1)
+//             { 
+//                 ev.events = EPOLLIN;
+//                 ev.data.fd = client_socket;
+//                 Client.push_back(client_socket);
+//                 epoll_ctl(fd_epoll, EPOLL_CTL_ADD,client_socket, &ev);
+//                 std::cout << "<-2-> I'm here " <<std::endl;
+
+//                 // Créer un nouvel objet Client et l'ajouter au ClientManager
+//                 client* newClient = new client(client_socket , this->port, this->password);
+//                 clientManager->addClient(client_socket, newClient);
+//             }
+//         }
+
+//         void server::handle_request(int fd)
+//         {
+//             char buffer[1024];
+//             int recv_byte;
+//             memset(buffer,0,1024);
+//             recv_byte = recv(fd,buffer,sizeof(buffer) - 1, 0);
+//             std::cout << recv_byte << std::endl;
+//             client* currentClient = clientManager->getClient(fd);
+//             if(recv_byte > 0)
+//             {   
+//                 std::string buff(buffer);
+//                 this->mab[fd] +=  buff;
+//                 if (this->mab[fd].find("\n") != std::string::npos)
+//                 {
+//                     //int bytes_sent = send(fd,this->mab[fd].c_str(),this->mab[fd].size(),MSG_DONTWAIT);  
+//                     if(currentClient){
+//                        // st::cerr << "hello" <<Std::endl;
+//                         dprintf(currentClient->get_fd(),"hello %d\n",currentClient->get_fd());
+//                         currentClient->check_cmd(fd, this->mab[fd]);
+//                         std::cout << "check cmd index "<< currentClient->index<<std::endl;
+
+//                     }
+//                     this->mab[fd] = "";
+//                 }
+                    
+//             }
+//             if (currentClient->index == - 1  || recv_byte ==  0)
+//             {
+//                 std::cout << "client fd " << fd<< std::endl;
+//                this->mab.erase(fd);
+//                 std::cout << "delete it \n";
+//                 std::cout << "mab :-" << this->mab[fd]<< "-\n";
+//                 if (epoll_ctl(fd_epoll, EPOLL_CTL_DEL, fd, NULL) == -1) 
+//                     std::cerr << "epoll_ctl: EPOLL_CTL_DEL" << std::endl;
+//                 // Supprimer le client du ClientManager
+//                // shutdown(fd, SHUT_RDWR);
+
+//                 if(close(currentClient->get_fd()) != -1)
+//                     std::cout << "close print \n";
+//             }
+//             else if (recv_byte <= 0)
+//             {
+//                 std::cout << "fd :  "<<  fd << std::endl;
+//                 close(fd);
+//             }
+
+//         }
+// //-----------------GETTERS-----------------//
+
+
+//                // clientManager->removeClient(fd);
