@@ -1,14 +1,4 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   clientM.hpp                                        :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: afennoun <afennoun@student.42.fr>          +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/06/06 18:47:47 by afennoun          #+#    #+#             */
-/*   Updated: 2024/08/29 14:16:08 by afennoun         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+
 
 #ifndef CLIENTM_HPP
 #define CLIENTM_HPP
@@ -17,6 +7,7 @@
 #include <string>
 
 #include "./IRC/channel.hpp"
+extern int fd_epoll;
 class client; // Déclaration avant utilisation de la classe client
 class  Channel;
 class ClientManager {
@@ -49,6 +40,9 @@ public:
     void removeChannel(const std::string& name);
     Channel* getChannel(const std::string& channelName);
     bool isChannel(const std::string& name);
+    void removeClientFromChannels(int clientFd);
+    bool isInChannels(int clientFd);
+    bool isOperatorInChannel(int fd);
 };
 
 #endif
